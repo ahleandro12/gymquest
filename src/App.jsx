@@ -246,7 +246,14 @@ if (snap.exists()) {
     char, checks, plans, owned,
     updatedAt: new Date().toISOString()
   });
+} else {
+  // Nueva cuenta sin datos — limpiar para ir a CharCreation
+  saveChar(null);
+  saveChecks([]);
+  savePlans([]);
+  saveOwned([]);
 }
+setAuthMode("google");
 setAuthMode("google");
 showMsg(`✅ Bienvenido ${user.displayName}!`);
     } catch (e) {
