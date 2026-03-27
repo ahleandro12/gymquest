@@ -1,8 +1,8 @@
-import { X, Plus, Check, Clock } from "lucide-react";
+import { useState } from "react";
+import { X, Plus, Check, Clock, ChevronDown, ChevronUp } from "lucide-react";
 import { MUSCLE_MAP, EXERCISE_CATEGORIES } from "../data.js";
 import { getMusclesFromExercises, calcPoints } from "../utils.js";
 
-// Busca el último registro de un ejercicio en el historial
 function getLastRecord(checks, exerciseName) {
   if (!exerciseName || !checks?.length) return null;
   for (const c of [...checks].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))) {
@@ -10,6 +10,45 @@ function getLastRecord(checks, exerciseName) {
     if (found) return found;
   }
   return null;
+}
+
+// Fila de ejercicio: compacta por defecto, se expande al tocar
+function ExerciseRow({ ex, onDelete, onUpdate }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="bg-gray-800 rounded-xl mb-1.5 overflow-hidden">
+      {/* Fila compacta */}
+      <div className="flex items-center gap-2 px-3 py-2.5">
+        <button onClick={() => setExpanded(e => !e)} className="flex-1 flex items-center gap-2 text-left">
+          <div className="flex-1">
+            <span className="text-yellow-400 font-bold text-sm">{ex.exercise}</span>
+            <span className="text-gray-500 text-xs ml-2">
+              {parseFloat(ex.weight) > 0 ? `${ex.weight}kg` : "PC"} × {ex.reps} × {ex.sets}s
+            </span>
+          </div>
+          {expanded ? <ChevronUp className="w-3 h-3 text-gray-600"/> : <ChevronDown className="w-3 h-3 text-gray-600"/>}
+        </button>
+        <button onClick={onDelete} className="text-gray-600 hover:text-red-400 pl-1"><X className="w-4 h-4"/></button>
+      </div>
+      {/* Acordeón de edición */}
+      {expanded && (
+        <div className="px-3 pb-3 grid grid-cols-3 gap-2 border-t border-gray-700 pt-2">
+          <div>
+            <div className="text-gray-500 text-xs mb-1">Kg</div>
+            <input type="number" value={ex.weight} onChange={e => onUpdate({ weight: e.target.value })} className="w-full px-2 py-1.5 bg-gray-700 text-yellow-400 border border-gray-600 rounded-lg text-sm outline-none"/>
+          </div>
+          <div>
+            <div className="text-gray-500 text-xs mb-1">Reps</div>
+            <input type="number" value={ex.reps} onChange={e => onUpdate({ reps: e.target.value })} className="w-full px-2 py-1.5 bg-gray-700 text-yellow-400 border border-gray-600 rounded-lg text-sm outline-none"/>
+          </div>
+          <div>
+            <div className="text-gray-500 text-xs mb-1">Series</div>
+            <input type="number" value={ex.sets} onChange={e => onUpdate({ sets: e.target.value })} className="w-full px-2 py-1.5 bg-gray-700 text-yellow-400 border border-gray-600 rounded-lg text-sm outline-none"/>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ExerciseInput({ value, onChange, useCustom, onToggleCustom, category, checks }) {
@@ -58,10 +97,9 @@ export default function CheckModal({ nc, setNc, exIn, setExIn, useCustomEx, setU
     setUseCustomEx(false);
   };
 
+  const updateEx = (id, fields) => setNc(p => ({ ...p, exercises: p.exercises.map(x => x.id === id ? { ...x, ...fields } : x) }));
+  const deleteEx = (id) => setNc(p => ({ ...p, exercises: p.exercises.filter(e => e.id !== id) }));
   const activeMuscles = [...getMusclesFromExercises(nc.exercises)];
-
-  // Modo rápido: si viene con ejercicios precargados del plan/coach
-  const isQuickMode = nc.exercises.length > 0 && nc._fromPlan;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-95 flex items-end sm:items-center justify-center p-4 z-50">
@@ -73,64 +111,45 @@ export default function CheckModal({ nc, setNc, exIn, setExIn, useCustomEx, setU
         <div className="p-4 space-y-4">
 
           {/* Fecha */}
-          <div>
-            <div className="text-yellow-400 font-black text-sm mb-2">📅 FECHA</div>
-            <input type="date" value={nc.date || new Date().toISOString().split("T")[0]} max={new Date().toISOString().split("T")[0]} onChange={e => setNc(p => ({ ...p, date: e.target.value }))} className="w-full px-3 py-2 bg-gray-800 text-yellow-400 border border-gray-700 rounded-xl text-sm outline-none"/>
-          </div>
+          <input type="date" value={nc.date || new Date().toISOString().split("T")[0]} max={new Date().toISOString().split("T")[0]} onChange={e => setNc(p => ({ ...p, date: e.target.value }))} className="w-full px-3 py-2 bg-gray-800 text-yellow-400 border border-gray-700 rounded-xl text-sm outline-none"/>
 
-          {/* Category */}
+          {/* Categoría */}
           <div>
             <div className="text-yellow-400 font-black text-sm mb-2">¿QUÉ ENTRENASTE?</div>
             <div className="grid grid-cols-3 gap-1.5">
               {Object.keys(EXERCISE_CATEGORIES).map(cat => (
                 <button key={cat} onClick={() => setNc(p => ({ ...p, category: cat }))}
-                  className={`py-2.5 rounded-xl font-black text-xs border-2 ${nc.category === cat ? (cat === "EMPUJE" ? "bg-red-700 border-red-400 text-white" : cat === "TIRÓN" ? "bg-blue-700 border-blue-400 text-white" : cat === "PIERNA" ? "bg-green-700 border-green-400 text-white" : cat === "CARDIO" ? "bg-orange-700 border-orange-400 text-white" : "bg-purple-700 border-purple-400 text-white") : (cat === "EMPUJE" ? "border-red-900 text-red-500" : cat === "TIRÓN" ? "border-blue-900 text-blue-500" : cat === "PIERNA" ? "border-green-900 text-green-500" : cat === "CARDIO" ? "border-orange-900 text-orange-500" : "border-purple-900 text-purple-500")}`}>
+                  className={`py-2.5 rounded-xl font-black text-xs border-2 ${nc.category === cat
+                    ? (cat === "EMPUJE" ? "bg-red-700 border-red-400 text-white" : cat === "TIRÓN" ? "bg-blue-700 border-blue-400 text-white" : cat === "PIERNA" ? "bg-green-700 border-green-400 text-white" : cat === "CARDIO" ? "bg-orange-700 border-orange-400 text-white" : "bg-purple-700 border-purple-400 text-white")
+                    : (cat === "EMPUJE" ? "border-red-900 text-red-500" : cat === "TIRÓN" ? "border-blue-900 text-blue-500" : cat === "PIERNA" ? "border-green-900 text-green-500" : cat === "CARDIO" ? "border-orange-900 text-orange-500" : "border-purple-900 text-purple-500")}`}>
                   {cat}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Exercises */}
+          {/* Ejercicios */}
           <div>
-            <div className="text-yellow-400 font-black text-sm mb-2">EJERCICIOS</div>
-
-            {/* Modo rápido: ejercicios del plan con inline editing */}
-            {isQuickMode && (
-              <div className="mb-2 bg-blue-950 border border-blue-800 rounded-xl p-2.5">
-                <div className="text-xs text-blue-400 font-black mb-1">⚡ MODO RÁPIDO — editá los valores</div>
-              </div>
-            )}
-
-            {activeMuscles.length > 0 && (
-              <div className="mb-2 bg-gray-800 rounded-xl p-2.5">
-                <div className="text-xs text-gray-500 font-bold mb-1">💪 Músculos:</div>
-                <div className="flex flex-wrap gap-1">{activeMuscles.map(m => <span key={m} className="text-xs px-2 py-0.5 rounded-full border font-bold" style={{ color: MUSCLE_MAP[m]?.color, borderColor: MUSCLE_MAP[m]?.color + "44", backgroundColor: MUSCLE_MAP[m]?.color + "11" }}>{MUSCLE_MAP[m]?.name}</span>)}</div>
-              </div>
-            )}
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-yellow-400 font-black text-sm">EJERCICIOS</div>
+              {activeMuscles.length > 0 && (
+                <div className="flex gap-1 flex-wrap justify-end">
+                  {activeMuscles.slice(0, 3).map(m => (
+                    <span key={m} className="text-xs px-1.5 py-0.5 rounded-full border font-bold" style={{ color: MUSCLE_MAP[m]?.color, borderColor: MUSCLE_MAP[m]?.color + "44", backgroundColor: MUSCLE_MAP[m]?.color + "11" }}>
+                      {MUSCLE_MAP[m]?.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {nc.exercises.map(ex => (
-              <div key={ex.id} className="bg-gray-800 rounded-xl p-2.5 mb-1.5">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <div className="flex-1 text-yellow-400 font-bold text-sm">{ex.exercise}</div>
-                  <button onClick={() => setNc(p => ({ ...p, exercises: p.exercises.filter(e => e.id !== ex.id) }))} className="text-gray-600 hover:text-red-400"><X className="w-4 h-4"/></button>
-                </div>
-                {/* Inline editing */}
-                <div className="grid grid-cols-3 gap-1.5">
-                  <div>
-                    <div className="text-gray-600 text-xs mb-0.5">Kg</div>
-                    <input type="number" value={ex.weight} onChange={e => setNc(p => ({ ...p, exercises: p.exercises.map(x => x.id === ex.id ? { ...x, weight: e.target.value } : x) }))} className="w-full px-2 py-1.5 bg-gray-700 text-yellow-400 border border-gray-600 rounded-lg text-sm outline-none"/>
-                  </div>
-                  <div>
-                    <div className="text-gray-600 text-xs mb-0.5">Reps</div>
-                    <input type="number" value={ex.reps} onChange={e => setNc(p => ({ ...p, exercises: p.exercises.map(x => x.id === ex.id ? { ...x, reps: e.target.value } : x) }))} className="w-full px-2 py-1.5 bg-gray-700 text-yellow-400 border border-gray-600 rounded-lg text-sm outline-none"/>
-                  </div>
-                  <div>
-                    <div className="text-gray-600 text-xs mb-0.5">Series</div>
-                    <input type="number" value={ex.sets} onChange={e => setNc(p => ({ ...p, exercises: p.exercises.map(x => x.id === ex.id ? { ...x, sets: e.target.value } : x) }))} className="w-full px-2 py-1.5 bg-gray-700 text-yellow-400 border border-gray-600 rounded-lg text-sm outline-none"/>
-                  </div>
-                </div>
-              </div>
+              <ExerciseRow
+                key={ex.id}
+                ex={ex}
+                onDelete={() => deleteEx(ex.id)}
+                onUpdate={(fields) => updateEx(ex.id, fields)}
+              />
             ))}
 
             {nc.category ? (
@@ -141,7 +160,9 @@ export default function CheckModal({ nc, setNc, exIn, setExIn, useCustomEx, setU
                   <input type="number" placeholder="Reps" value={exIn.reps} onChange={e => setExIn(p => ({ ...p, reps: e.target.value }))} className="px-3 py-2 bg-gray-800 text-yellow-400 border border-gray-700 rounded-xl text-sm outline-none"/>
                   <input type="number" placeholder="Series" value={exIn.sets} onChange={e => setExIn(p => ({ ...p, sets: e.target.value }))} className="px-3 py-2 bg-gray-800 text-yellow-400 border border-gray-700 rounded-xl text-sm outline-none"/>
                 </div>
-                <button onClick={addEx} className="w-full mt-2 bg-yellow-700 border border-yellow-500 text-white py-2 rounded-xl text-sm font-black flex items-center justify-center gap-2"><Plus className="w-4 h-4"/>Agregar ejercicio</button>
+                <button onClick={addEx} className="w-full mt-2 bg-yellow-700 border border-yellow-500 text-white py-2 rounded-xl text-sm font-black flex items-center justify-center gap-2">
+                  <Plus className="w-4 h-4"/>Agregar ejercicio
+                </button>
               </>
             ) : <p className="text-gray-600 text-xs text-center py-2">Elegí una categoría primero ☝️</p>}
           </div>
@@ -153,7 +174,9 @@ export default function CheckModal({ nc, setNc, exIn, setExIn, useCustomEx, setU
           )}
 
           <textarea value={nc.notes} onChange={e => setNc(p => ({ ...p, notes: e.target.value }))} placeholder="Notas opcionales..." rows={2} className="w-full px-3 py-2 bg-gray-800 text-gray-300 border border-gray-700 rounded-xl text-sm resize-none outline-none"/>
-          <button onClick={onSubmit} className="w-full bg-green-600 border-2 border-green-400 text-white py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2"><Check className="w-5 h-5"/>COMPLETAR CHECK</button>
+          <button onClick={onSubmit} className="w-full bg-green-600 border-2 border-green-400 text-white py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2">
+            <Check className="w-5 h-5"/>COMPLETAR CHECK
+          </button>
         </div>
       </div>
     </div>
