@@ -646,7 +646,7 @@ export default function GymQuest() {
             <div className="text-gray-500 font-black text-xs mt-1">🎯 MISIONES</div>
             {[{t:"Primer golpe",d:"1 entrenamiento",target:1,current:checks.length,xp:100},{t:"Guerrero",d:"10 entrenamientos",target:10,current:checks.length,xp:300},{t:"Racha ardiente",d:"5 días seguidos",target:5,current:streak,xp:400},{t:"Centurión",d:"25 entrenamientos",target:25,current:checks.length,xp:700},{t:"Leyenda",d:"100 entrenamientos",target:100,current:checks.length,xp:2000}].map((m,i) => { const done=m.current>=m.target; return <div key={i} className={`border-2 rounded-2xl p-3 ${done?"border-green-800 bg-green-950":"border-gray-800 bg-gray-900"}`}><div className="flex justify-between items-center mb-1.5"><div><div className={`font-black text-sm ${done?"text-green-400 line-through":"text-white"}`}>{m.t}</div><div className="text-gray-600 text-xs">{m.d}</div></div><div className="text-green-400 text-xs font-black">+{m.xp} XP</div></div><div className="bg-gray-800 h-1.5 rounded-full"><div className={`h-1.5 rounded-full ${done?"bg-green-500":"bg-yellow-500"}`} style={{width:`${Math.min((m.current/m.target)*100,100)}%`}}/></div><div className="text-gray-700 text-xs mt-0.5 text-right">{Math.min(m.current,m.target)}/{m.target}</div></div>; })}
           </div>}
-        </div>{/* end profile */}
+     </div>}{/* end profile */}
       </div>{/* end main content */}
       </div>{/* end layout flex */}
 
