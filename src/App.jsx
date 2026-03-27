@@ -232,36 +232,87 @@ export default function GymQuest() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       const snap = await getDoc(doc(db, "users", user.uid));
+      let loadedChar = null;
+      let loadedChecks = [];
+      let loadedPlans = [];
+      let loadedOwned = [];
+      let isNewUser = false;
+
       if (snap.exists()) {
         const data = snap.data();
-        storage.set("gq_char", data.char || null);
-        storage.set("gq_checks", data.checks || []);
-        storage.set("gq_plans", data.plans || []);
-        storage.set("gq_owned", data.owned || []);
-        setChar(data.char || null);
-        setChecks(data.checks || []);
-        setPlans(data.plans || []);
-        setOwned(data.owned || []);
+        loadedChar = data.char || null;
+        loadedChecks = data.checks || [];
+        loadedPlans = data.plans || [];
+        loadedOwned = data.owned || [];
       } else if (char) {
+        // Migrar invitado
+        loadedChar = char;
+        loadedChecks = checks;
+        loadedPlans = plans;
+        loadedOwned = owned;
         await setDoc(doc(db, "users", user.uid), {
           char, checks, plans, owned,
           updatedAt: new Date().toISOString()
         });
       } else {
-        storage.set("gq_char", null);
-        storage.set("gq_checks", []);
-        storage.set("gq_plans", []);
-        storage.set("gq_owned", []);
-        setChar(null);
-        setChecks([]);
-        setPlans([]);
-        setOwned([]);
+        isNewUser = true;
       }
+
+      storage.set("gq_char", loadedChar);
+      storage.set("gq_checks", loadedChecks);
+      storage.set("gq_plans", loadedPlans);
+      storage.set("gq_owned", loadedOwned);
+      setChar(loadedChar);
+      setChecks(loadedChecks);
+      setPlans(loadedPlans);
+      setOwned(loadedOwned);
       storage.set("gq_auth", "google");
       storage.set("gq_uid", user.uid);
       setUid(user.uid);
       setAuthMode("google");
-      showMsg(`✅ Bienvenido ${user.displayName}!`);
+
+      // ── RECOMPENSAS ──
+      if (isNewUser) {
+        // Bonus de bienvenida — se aplica cuando cree el personaje
+        storage.set("gq_welcome_bonus", true);
+        showMsg(`🎉 Bienvenido ${user.displayName}! Creá tu personaje para empezar`);
+      } else if (loadedChar) {
+        // Recompensa diaria
+        const today = new Date().toDateString();
+        const rewardSnap = await getDoc(doc(db, "rewards", user.uid));
+        const rewardData = rewardSnap.exists() ? rewardSnap.data() : {};
+        const lastLogin = rewardData.lastLogin;
+        const loginStreak = rewardData.loginStreak || 0;
+
+        if (lastLogin !== today) {
+          const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+          const isConsecutive = lastLogin === yesterday.toDateString();
+          const newStreak = isConsecutive ? loginStreak + 1 : 1;
+          const multiplier = newStreak >= 7 ? 3 : newStreak >= 3 ? 2 : 1;
+          const expReward = 50 * multiplier;
+          const goldReward = 30 * multiplier;
+
+          await setDoc(doc(db, "rewards", user.uid), {
+            lastLogin: today,
+            loginStreak: newStreak,
+          });
+
+          const updatedChar = {
+            ...loadedChar,
+            exp: (loadedChar.exp || 0) + expReward,
+            gold: (loadedChar.gold || 0) + goldReward,
+          };
+          storage.set("gq_char", updatedChar);
+          setChar(updatedChar);
+
+          const streakMsg = newStreak >= 7 ? " 🔥 ¡RACHA x3!" : newStreak >= 3 ? " ⚡ Racha x2!" : "";
+          showMsg(`🎁 Recompensa diaria: +${expReward} EXP · +${goldReward}🪙${streakMsg}`);
+        } else {
+          showMsg(`✅ Bienvenido de vuelta ${user.displayName}!`);
+        }
+      } else {
+        showMsg(`✅ Bienvenido ${user.displayName}!`);
+      }
     } catch (e) {
       showMsg("Error al conectar con Google", "err");
     }
@@ -397,7 +448,18 @@ export default function GymQuest() {
 
   if (loading) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><div className="text-center"><div className="text-6xl mb-3 animate-pulse">⚔️</div><div className="text-yellow-400 font-black text-2xl" style={{ fontFamily: "monospace" }}>GYMQUEST</div></div></div>;
   if (!authMode) return <LoginScreen onGuest={handleGuest} onGoogle={handleGoogle}/>;
-  if (!char) return <CharCreation onDone={saveChar} showMsg={showMsg} toast={toast}/>;
+  if (!char) return <CharCreation onDone={(newChar) => {
+    // Bonus de bienvenida para usuarios Google
+    const welcomeBonus = storage.get("gq_welcome_bonus");
+    if (welcomeBonus && authMode === "google") {
+      storage.set("gq_welcome_bonus", null);
+      const bonusChar = { ...newChar, exp: 200, gold: 250 };
+      saveChar(bonusChar);
+      setTimeout(() => showMsg("🎉 +200 EXP · +250🪙 ¡Bonus de bienvenida Google!", "level"), 500);
+    } else {
+      saveChar(newChar);
+    }
+  }} showMsg={showMsg} toast={toast}/>;
 
   // Nav tabs — aldea solo para usuarios Google
   const navTabs = [
