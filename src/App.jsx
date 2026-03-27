@@ -373,7 +373,7 @@ export default function GymQuest() {
       {tab !== "profile" && <button onClick={() => setShowCheck(true)} className="fixed bottom-20 right-4 bg-yellow-500 border-4 border-yellow-300 rounded-full p-4 shadow-2xl z-50"><Plus className="w-6 h-6 text-black"/></button>}
 
       {/* MODALS */}
-      {showCheck && <CheckModal nc={nc} setNc={setNc} exIn={exIn} setExIn={setExIn} useCustomEx={useCustomEx} setUseCustomEx={setUseCustomEx} char={char} onSubmit={submitCheck} onClose={() => { setShowCheck(false); setNc({exercises:[],category:"",notes:""}); setExIn({exercise:"",customExercise:"",weight:"",reps:"",sets:"3"}); setUseCustomEx(false); }}/>}
+      {showCheck && <CheckModal nc={nc} setNc={setNc} exIn={exIn} setExIn={setExIn} useCustomEx={useCustomEx} setUseCustomEx={setUseCustomEx} char={char} checks={checks} onSubmit={submitCheck} onClose={() => { setShowCheck(false); setNc({exercises:[],category:"",notes:""}); setExIn({exercise:"",customExercise:"",weight:"",reps:"",sets:"3"}); setUseCustomEx(false); }}/>}
       {showImport && <ImportModal onClose={() => setShowImport(false)} onImport={handleImport} showMsg={showMsg}/>}
       {selectedDay && <DayDetailModal date={selectedDay.date} dayChecks={selectedDay.checks} onClose={() => setSelectedDay(null)}/>}
 
