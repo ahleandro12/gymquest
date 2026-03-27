@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { signInWithRedirect, getRedirectResult, signOut } from "firebase/auth";
+import { signInWithPopup, getRedirectResult, signOut } from "firebase/auth";;
 import { doc, setDoc, getDoc, collection, orderBy, limit, onSnapshot, query } from "firebase/firestore";
 import { auth, provider, db } from "./firebase.js";
 import { Flame, Plus, Check, Play, Lock, ChevronDown, ChevronUp, Edit2, Trash2, User, Home, Zap, LogIn, LogOut, Calendar, FileText, X, Users } from "lucide-react";
@@ -326,7 +326,26 @@ export default function GymQuest() {
 
   const handleGoogle = async () => {
     try {
-      await signInWithRedirect(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+const user = result.user;
+storage.set("gq_auth", "google");
+storage.set("gq_uid", user.uid);
+setUid(user.uid);
+const snap = await getDoc(doc(db, "users", user.uid));
+if (snap.exists()) {
+  const data = snap.data();
+  if (data.char) saveChar(data.char);
+  if (data.checks) saveChecks(data.checks);
+  if (data.plans) savePlans(data.plans);
+  if (data.owned) saveOwned(data.owned);
+} else if (char) {
+  await setDoc(doc(db, "users", user.uid), {
+    char, checks, plans, owned,
+    updatedAt: new Date().toISOString()
+  });
+}
+setAuthMode("google");
+showMsg(`✅ Bienvenido ${user.displayName}!`);
     } catch (e) {
       showMsg("Error al conectar con Google", "err");
     }
