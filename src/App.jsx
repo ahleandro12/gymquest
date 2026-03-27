@@ -268,21 +268,20 @@ export default function GymQuest() {
   };
 
   const handleLogout = async () => {
-  if (authMode === "google") await signOut(auth);
-  storage.set("gq_auth", null);
-  storage.set("gq_uid", null);
-  storage.set("gq_char", null);
-  storage.set("gq_checks", []);
-  storage.set("gq_plans", []);
-  storage.set("gq_owned", []);
-  storage.set("gq_equipped", null);
-  setAuthMode(null);
-  setUid(null);
-  setChar(null);
-  setChecks([]);
-  setPlans([]);
-  setOwned([]);
-};
+    if (authMode === "google") await signOut(auth);
+    storage.set("gq_auth", null);
+    storage.set("gq_uid", null);
+    storage.set("gq_char", null);
+    storage.set("gq_checks", []);
+    storage.set("gq_plans", []);
+    storage.set("gq_owned", []);
+    storage.set("gq_equipped", null);
+    setAuthMode(null);
+    setUid(null);
+    setChar(null);
+    setChecks([]);
+    setPlans([]);
+    setOwned([]);
   };
 
   const submitCheck = () => {
