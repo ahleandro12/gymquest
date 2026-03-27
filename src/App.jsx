@@ -95,6 +95,28 @@ function CharCreation({ onDone, showMsg, toast }) {
   );
 }
 
+// ── COLD ALERTS ──
+function ColdAlertsCard({ alerts }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="bg-indigo-950 border-2 border-indigo-700 rounded-2xl overflow-hidden">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between p-3">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🥶</span>
+          <span className="text-indigo-300 font-black text-sm">MÚSCULOS FRÍOS</span>
+          <span className="bg-indigo-800 text-indigo-300 text-xs font-black px-2 py-0.5 rounded-full">{alerts.length}</span>
+        </div>
+        {open ? <ChevronUp className="w-4 h-4 text-indigo-500"/> : <ChevronDown className="w-4 h-4 text-indigo-500"/>}
+      </button>
+      {open && (
+        <div className="px-3 pb-3 flex flex-wrap gap-1.5">
+          {alerts.map(m => <span key={m} className="bg-indigo-900 text-indigo-200 text-xs px-2.5 py-1 rounded-full font-bold border border-indigo-700">{m}</span>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── MAIN APP ──
 export default function GymQuest() {
   const [authMode, setAuthMode] = useState(null);
@@ -254,7 +276,7 @@ export default function GymQuest() {
             <div className="flex items-center gap-3"><div className="relative"><div className="text-5xl">{archData.icon}</div>{skinItem?.id === "skin_fire" && <div className="absolute -bottom-1 -right-1 text-base animate-pulse">🔥</div>}</div><div className="flex-1"><div className="flex items-center gap-2 flex-wrap"><span className="text-yellow-400 font-black text-lg">{char.name}</span>{titleItem && <span className="text-xs bg-yellow-900 text-yellow-300 px-2 py-0.5 rounded-full border border-yellow-800">{titleItem.icon} {titleItem.name}</span>}</div><div className="text-blue-300 text-xs">Nv.{lvl} · {archData.name}</div></div><div className="text-right"><div className="text-yellow-400 font-black">{char.gold}🪙</div><div className="text-orange-400 font-bold text-sm flex items-center gap-1 justify-end"><Flame className="w-3 h-3"/>{streak}d</div></div></div>
           </div>
 
-          {coldAlerts.length > 0 && <div className="bg-indigo-950 border-2 border-indigo-700 rounded-2xl p-3"><div className="flex items-center gap-2 mb-2"><span className="text-lg">🥶</span><span className="text-indigo-300 font-black text-sm">MÚSCULOS FRÍOS</span></div><div className="flex flex-wrap gap-1.5">{coldAlerts.map(m => <span key={m} className="bg-indigo-900 text-indigo-200 text-xs px-2.5 py-1 rounded-full font-bold border border-indigo-700">{m}</span>)}</div></div>}
+          {coldAlerts.length > 0 && <ColdAlertsCard alerts={coldAlerts} />}
 
           {/* Calendar */}
           <div className="bg-gray-900 border-4 border-gray-700 rounded-2xl p-4">
