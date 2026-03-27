@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+import { signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
+import { doc, setDoc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { auth, provider, db } from "./firebase.js";
 import { Flame, Plus, Check, Play, Lock, ChevronDown, ChevronUp, Edit2, Trash2, User, Home, Zap, LogIn, LogOut, Calendar, FileText, X } from "lucide-react";
 
 import { MUSCLE_MAP, EXERCISE_CATEGORIES, RACES, ARCHETYPES, SHOP_ITEMS, COACHES, QUIZ } from "./data.js";
@@ -171,8 +174,47 @@ export default function GymQuest() {
   const saveOwned = o => { storage.set("gq_owned", o); setOwned(o); };
   const saveEquipped = (title, skin) => { storage.set("gq_equipped", { title, skin }); setEquippedTitle(title); setEquippedSkin(skin); };
 
-  const handleGuest = () => { storage.set("gq_auth", "guest"); setAuthMode("guest"); };
-  const handleLogout = () => { storage.set("gq_auth", null); setAuthMode(null); };
+const handleGuest = () => { storage.set("gq_auth", "guest"); setAuthMode("guest"); };
+
+const handleGoogle = async () => {
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+    storage.set("gq_auth", "google");
+    storage.set("gq_uid", user.uid);
+    // Si era invitado, migrar datos locales a Firestore
+    if (char) {
+      await setDoc(doc(db, "users", user.uid), {
+        char: { ...char, name: char.name || user.displayName },
+        checks,
+        plans,
+        owned,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+    } else {
+      // Intentar cargar datos existentes de Firestore
+      const snap = await getDoc(doc(db, "users", user.uid));
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data.char) saveChar(data.char);
+        if (data.checks) saveChecks(data.checks);
+        if (data.plans) savePlans(data.plans);
+        if (data.owned) saveOwned(data.owned);
+      }
+    }
+    setAuthMode("google");
+    showMsg(`✅ Bienvenido ${user.displayName}!`);
+  } catch (e) {
+    showMsg("Error al conectar con Google", "err");
+  }
+};
+
+const handleLogout = async () => {
+  if (authMode === "google") await signOut(auth);
+  storage.set("gq_auth", null);
+  storage.set("gq_uid", null);
+  setAuthMode(null);
+};
 
   const submitCheck = () => {
     if (!nc.category) { showMsg("Elegí una categoría", "err"); return; }
