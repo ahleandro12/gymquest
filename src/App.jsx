@@ -177,7 +177,7 @@ export default function GymQuest() {
     if (!nc.category) { showMsg("Elegí una categoría", "err"); return; }
     if (!nc.exercises.length) { showMsg("Agregá al menos un ejercicio", "err"); return; }
     const { exp, gold } = calcPoints(nc, char);
-    const obj = { id: Date.now(), timestamp: new Date().toISOString(), ...nc, exp, gold };
+    const obj = { id: Date.now(), timestamp: nc.date ? new Date(nc.date).toISOString() : new Date().toISOString(), ...nc, exp, gold };
     const newChecks = [...checks, obj]; saveChecks(newChecks);
     const newExp = (char.exp || 0) + exp, newLvl = calcLevel(newExp), oldLvl = calcLevel(char.exp || 0);
     const stats = { ...char.stats };
