@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, setDoc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, setDoc, getDoc, collection, orderBy, limit, onSnapshot, query } from "firebase/firestore";
 import { auth, provider, db } from "./firebase.js";
-import { Flame, Plus, Check, Play, Lock, ChevronDown, ChevronUp, Edit2, Trash2, User, Home, Zap, LogIn, LogOut, Calendar, FileText, X } from "lucide-react";
+import { Flame, Plus, Check, Play, Lock, ChevronDown, ChevronUp, Edit2, Trash2, User, Home, Zap, LogIn, LogOut, Calendar, FileText, X, Users } from "lucide-react";
 
 import { MUSCLE_MAP, EXERCISE_CATEGORIES, RACES, ARCHETYPES, SHOP_ITEMS, COACHES, QUIZ } from "./data.js";
 import { storage, calcLevel, expForLevel, calcStreak, sameDay, getWeekChecks, calcPoints, getMuscleHeat, getMusclesFromExercises, heatColor, heatLabel, rarityColor, rarityBg } from "./utils.js";
@@ -16,10 +16,18 @@ function LoginScreen({ onGuest, onGoogle }) {
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4" style={{ fontFamily: "monospace" }}>
       <div className="max-w-sm w-full">
-        <div className="text-center mb-8"><div className="text-7xl mb-3">⚔️</div><h1 className="text-5xl font-black text-yellow-400">GYMQUEST</h1><p className="text-gray-500 text-sm mt-2">Tu aventura fitness comienza acá</p></div>
+        <div className="text-center mb-8">
+          <div className="text-7xl mb-3">⚔️</div>
+          <h1 className="text-5xl font-black text-yellow-400">GYMQUEST</h1>
+          <p className="text-gray-500 text-sm mt-2">Tu aventura fitness comienza acá</p>
+        </div>
         <div className="space-y-3">
-          <button onClick={onGuest} className="w-full bg-yellow-500 border-4 border-yellow-300 text-black font-black py-4 rounded-2xl text-lg flex items-center justify-center gap-3"><Zap className="w-6 h-6"/>ENTRAR COMO INVITADO</button>
-          <button onClick={onGoogle} className="w-full bg-gray-800 border-2 border-gray-600 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3"><span className="text-xl"> handleGoogle
+          <button onClick={onGoogle} className="w-full bg-white border-4 border-gray-200 text-gray-900 font-black py-4 rounded-2xl text-lg flex items-center justify-center gap-3">
+            <span className="text-xl">🔗</span>ENTRAR CON GOOGLE
+          </button>
+          <button onClick={onGuest} className="w-full bg-gray-800 border-2 border-gray-600 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3">
+            <Zap className="w-5 h-5 text-yellow-400"/>ENTRAR COMO INVITADO
+          </button>
           <p className="text-center text-gray-700 text-xs mt-4">Como invitado tu progreso se guarda en este dispositivo</p>
         </div>
       </div>
@@ -120,9 +128,108 @@ function ColdAlertsCard({ alerts }) {
   );
 }
 
+// ── ALDEA ──
+function AldeaTab({ currentUid, currentChar }) {
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(collection(db, "users"), orderBy("updatedAt", "desc"), limit(20));
+    const unsub = onSnapshot(q, (snap) => {
+      const data = snap.docs
+        .map(d => ({ uid: d.id, ...d.data() }))
+        .filter(u => u.char && u.uid !== currentUid);
+      setMembers(data);
+      setLoading(false);
+    });
+    return () => unsub();
+  }, [currentUid]);
+
+  if (loading) return <div className="text-center py-12 text-gray-600">Cargando aldea...</div>;
+
+  return (
+    <div className="space-y-3">
+      <div className="bg-gray-900 border-2 border-yellow-800 rounded-2xl p-4">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-2xl">🏰</span>
+          <span className="text-yellow-400 font-black text-lg">ALDEA GYMQUEST</span>
+        </div>
+        <p className="text-gray-500 text-xs">{members.length + 1} guerrero{members.length !== 0 ? "s" : ""} activo{members.length !== 0 ? "s" : ""}</p>
+      </div>
+
+      {/* Tu card */}
+      {currentChar && <MemberCard char={currentChar} isYou={true}/>}
+
+      {members.length === 0 && (
+        <div className="text-gray-600 text-center py-8 text-sm">
+          Sos el primero en la aldea 🥇<br/>
+          <span className="text-gray-700 text-xs">Invitá amigos para ver su progreso acá</span>
+        </div>
+      )}
+
+      {members.map(m => <MemberCard key={m.uid} char={m.char} checks={m.checks || []}/>)}
+    </div>
+  );
+}
+
+function MemberCard({ char, checks = [], isYou = false }) {
+  const lvl = calcLevel(char?.exp || 0);
+  const streak = calcStreak(checks);
+  const curLvlExp = expForLevel(lvl), nextLvlExp = expForLevel(lvl + 1);
+  const expPct = Math.min(((( char?.exp || 0) - curLvlExp) / (nextLvlExp - curLvlExp)) * 100, 100);
+  const archData = ARCHETYPES[char?.archetype] || ARCHETYPES.barbarian;
+  const lastCheck = [...checks].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+
+  return (
+    <div className={`bg-gray-900 border-2 rounded-2xl p-4 ${isYou ? "border-yellow-600" : "border-gray-700"}`}>
+      <div className="flex items-center gap-3 mb-3">
+        <div className="text-3xl">{archData.icon}</div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-white font-black">{char?.name}</span>
+            {isYou && <span className="text-xs bg-yellow-900 text-yellow-400 px-1.5 py-0.5 rounded-full border border-yellow-800">Vos</span>}
+          </div>
+          <div className="text-gray-500 text-xs">Nv.{lvl} · {archData.name}</div>
+        </div>
+        <div className="text-right">
+          <div className="text-orange-400 text-sm font-black flex items-center gap-1 justify-end">
+            <Flame className="w-3 h-3"/>{streak}d
+          </div>
+          <div className="text-gray-600 text-xs">{checks.length} entrenos</div>
+        </div>
+      </div>
+
+      {/* Barra EXP */}
+      <div className="mb-2">
+        <div className="flex justify-between text-xs text-gray-600 mb-1">
+          <span>{char?.exp || 0} EXP</span>
+          <span>Nv.{lvl + 1}</span>
+        </div>
+        <div className="bg-gray-800 h-2 rounded-full overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all" style={{ width: `${expPct}%` }}/>
+        </div>
+      </div>
+
+      {/* Último entreno */}
+      {lastCheck && (
+        <div className="bg-gray-800 rounded-xl px-3 py-2 flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${lastCheck.category === "EMPUJE" ? "bg-red-500" : lastCheck.category === "TIRÓN" ? "bg-blue-500" : lastCheck.category === "PIERNA" ? "bg-green-500" : lastCheck.category === "CARDIO" ? "bg-orange-500" : "bg-purple-500"}`}/>
+          <div className="flex-1 text-xs text-gray-400">
+            <span className="font-bold text-gray-300">{lastCheck.category}</span>
+            <span className="mx-1">·</span>
+            {lastCheck.exercises?.slice(0, 2).map(e => e.exercise).join(", ")}
+          </div>
+          <span className="text-green-400 text-xs font-black">+{lastCheck.exp || 0} XP</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── MAIN APP ──
 export default function GymQuest() {
   const [authMode, setAuthMode] = useState(null);
+  const [uid, setUid] = useState(null);
   const [char, setChar] = useState(null);
   const [checks, setChecks] = useState([]);
   const [plans, setPlans] = useState([]);
@@ -159,13 +266,31 @@ export default function GymQuest() {
   const [useCustomEx, setUseCustomEx] = useState(false);
 
   useEffect(() => {
-    const auth = storage.get("gq_auth"), c = storage.get("gq_char"), ch = storage.get("gq_checks");
+    const savedAuth = storage.get("gq_auth");
+    const c = storage.get("gq_char"), ch = storage.get("gq_checks");
     const co = storage.get("gq_coach"), pl = storage.get("gq_plans"), ow = storage.get("gq_owned"), eq = storage.get("gq_equipped");
-    if (auth) setAuthMode(auth); if (c) setChar(c); if (ch) setChecks(ch);
+    if (savedAuth) setAuthMode(savedAuth);
+    if (c) setChar(c); if (ch) setChecks(ch);
     if (co) setCoachId(co); if (pl) setPlans(pl); if (ow) setOwned(ow);
     if (eq) { setEquippedTitle(eq.title || null); setEquippedSkin(eq.skin || null); }
+    const savedUid = storage.get("gq_uid");
+    if (savedUid) setUid(savedUid);
     setLoading(false);
   }, []);
+
+  // Sincronizar a Firestore cuando cambian datos (solo usuarios Google)
+  useEffect(() => {
+    if (authMode !== "google" || !uid || !char) return;
+    const timeout = setTimeout(async () => {
+      try {
+        await setDoc(doc(db, "users", uid), {
+          char, checks, plans, owned,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      } catch (e) { console.error("Sync error", e); }
+    }, 2000);
+    return () => clearTimeout(timeout);
+  }, [char, checks, authMode, uid]);
 
   const showMsg = (msg, type = "ok") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
   const saveChar = c => { storage.set("gq_char", c); setChar(c); };
@@ -174,25 +299,15 @@ export default function GymQuest() {
   const saveOwned = o => { storage.set("gq_owned", o); setOwned(o); };
   const saveEquipped = (title, skin) => { storage.set("gq_equipped", { title, skin }); setEquippedTitle(title); setEquippedSkin(skin); };
 
-const handleGuest = () => { storage.set("gq_auth", "guest"); setAuthMode("guest"); };
+  const handleGuest = () => { storage.set("gq_auth", "guest"); setAuthMode("guest"); };
 
-const handleGoogle = async () => {
-  try {
-    const result = await signInWithPopup(auth, provider);
-    const user = result.user;
-    storage.set("gq_auth", "google");
-    storage.set("gq_uid", user.uid);
-    // Si era invitado, migrar datos locales a Firestore
-    if (char) {
-      await setDoc(doc(db, "users", user.uid), {
-        char: { ...char, name: char.name || user.displayName },
-        checks,
-        plans,
-        owned,
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
-    } else {
-      // Intentar cargar datos existentes de Firestore
+  const handleGoogle = async () => {
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      storage.set("gq_auth", "google");
+      storage.set("gq_uid", user.uid);
+      setUid(user.uid);
       const snap = await getDoc(doc(db, "users", user.uid));
       if (snap.exists()) {
         const data = snap.data();
@@ -200,27 +315,34 @@ const handleGoogle = async () => {
         if (data.checks) saveChecks(data.checks);
         if (data.plans) savePlans(data.plans);
         if (data.owned) saveOwned(data.owned);
+      } else if (char) {
+        // Migrar datos de invitado
+        await setDoc(doc(db, "users", user.uid), {
+          char: { ...char, name: char.name || user.displayName },
+          checks, plans, owned,
+          updatedAt: new Date().toISOString()
+        });
       }
+      setAuthMode("google");
+      showMsg(`✅ Bienvenido ${user.displayName}!`);
+    } catch (e) {
+      showMsg("Error al conectar con Google", "err");
     }
-    setAuthMode("google");
-    showMsg(`✅ Bienvenido ${user.displayName}!`);
-  } catch (e) {
-    showMsg("Error al conectar con Google", "err");
-  }
-};
+  };
 
-const handleLogout = async () => {
-  if (authMode === "google") await signOut(auth);
-  storage.set("gq_auth", null);
-  storage.set("gq_uid", null);
-  setAuthMode(null);
-};
+  const handleLogout = async () => {
+    if (authMode === "google") await signOut(auth);
+    storage.set("gq_auth", null);
+    storage.set("gq_uid", null);
+    setAuthMode(null);
+    setUid(null);
+  };
 
   const submitCheck = () => {
     if (!nc.category) { showMsg("Elegí una categoría", "err"); return; }
     if (!nc.exercises.length) { showMsg("Agregá al menos un ejercicio", "err"); return; }
     const { exp, gold } = calcPoints(nc, char);
-    const obj = { id: Date.now(), timestamp: new Date().toISOString(), ...nc, exp, gold };
+    const obj = { id: Date.now(), timestamp: nc.date ? new Date(nc.date).toISOString() : new Date().toISOString(), ...nc, exp, gold };
     const newChecks = [...checks, obj]; saveChecks(newChecks);
     const newExp = (char.exp || 0) + exp, newLvl = calcLevel(newExp), oldLvl = calcLevel(char.exp || 0);
     const stats = { ...char.stats };
@@ -316,10 +438,6 @@ const handleLogout = async () => {
     return { cat, sType, exs, tip: COACHES[coachId]?.tips[n % COACHES[coachId].tips.length] };
   })();
 
-  if (loading) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><div className="text-center"><div className="text-6xl mb-3 animate-pulse">⚔️</div><div className="text-yellow-400 font-black text-2xl" style={{ fontFamily: "monospace" }}>GYMQUEST</div></div></div>;
-  if (!authMode) return <LoginScreen onGuest={handleGuest} onGoogle={handleGoogle}/>;
-  if (!char) return <CharCreation onDone={saveChar} showMsg={showMsg} toast={toast}/>;
-
   const ExInputInline = ({ value, onChange, useCustom, onToggleCustom, category }) => (
     <div className="space-y-2">
       <div className="flex gap-2">
@@ -331,6 +449,18 @@ const handleLogout = async () => {
     </div>
   );
 
+  if (loading) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><div className="text-center"><div className="text-6xl mb-3 animate-pulse">⚔️</div><div className="text-yellow-400 font-black text-2xl" style={{ fontFamily: "monospace" }}>GYMQUEST</div></div></div>;
+  if (!authMode) return <LoginScreen onGuest={handleGuest} onGoogle={handleGoogle}/>;
+  if (!char) return <CharCreation onDone={saveChar} showMsg={showMsg} toast={toast}/>;
+
+  // Nav tabs — aldea solo para usuarios Google
+  const navTabs = [
+    { id: "home", icon: Home, l: "Inicio" },
+    { id: "train", icon: Zap, l: "Entrenar" },
+    ...(authMode === "google" ? [{ id: "aldea", icon: Users, l: "Aldea" }] : []),
+    { id: "profile", icon: User, l: "Perfil" },
+  ];
+
   return (
     <div className="min-h-screen bg-gray-950 text-white pb-24" style={{ fontFamily: "monospace" }}>
       {toast && <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 rounded-2xl font-black text-sm shadow-2xl pointer-events-none ${toast.type === "err" ? "bg-red-600" : toast.type === "level" ? "bg-yellow-500 text-black" : toast.type === "badge" ? "bg-purple-600" : "bg-green-600"}`}>{toast.msg}</div>}
@@ -339,7 +469,12 @@ const handleLogout = async () => {
       <div className="bg-gray-900 border-b-4 border-yellow-700 px-4 py-3 sticky top-0 z-40">
         <div className="max-w-xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2"><span className="text-2xl">{RACES[char.race]?.icon}</span><div><div className="flex items-center gap-1.5"><span className="text-yellow-400 font-black">{char.name}</span>{titleItem && <span className="text-xs text-yellow-600 bg-yellow-950 px-1.5 py-0.5 rounded-full border border-yellow-800">{titleItem.icon}</span>}</div><div className="text-green-400 text-xs">Nv.{lvl} · {archData.name}</div></div></div>
-          <div className="flex items-center gap-3"><div className="flex items-center gap-1"><Flame className="w-4 h-4 text-orange-500"/><span className="text-orange-400 font-black text-sm">{streak}</span></div><span className="text-yellow-400 font-bold text-sm">{char.gold}🪙</span><button onClick={handleLogout} className="text-gray-600 hover:text-gray-400"><LogOut className="w-4 h-4"/></button></div>
+          <div className="flex items-center gap-3">
+            {authMode === "google" && <span className="text-xs text-blue-400 bg-blue-950 px-2 py-0.5 rounded-full border border-blue-800">🔗 Google</span>}
+            <div className="flex items-center gap-1"><Flame className="w-4 h-4 text-orange-500"/><span className="text-orange-400 font-black text-sm">{streak}</span></div>
+            <span className="text-yellow-400 font-bold text-sm">{char.gold}🪙</span>
+            <button onClick={handleLogout} className="text-gray-600 hover:text-gray-400"><LogOut className="w-4 h-4"/></button>
+          </div>
         </div>
         <div className="max-w-xl mx-auto mt-2"><div className="bg-gray-800 h-2 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-700" style={{ width: `${expPct}%` }}/></div><div className="flex justify-between text-xs text-gray-600 mt-0.5"><span>{totalExp - curLvlExp} EXP</span><span>Nv.{lvl + 1} en {nextLvlExp - totalExp}</span></div></div>
       </div>
@@ -348,14 +483,12 @@ const handleLogout = async () => {
 
         {/* ── HOME ── */}
         {tab === "home" && <div className="space-y-4">
-          {/* Character card */}
           <div className={`border-4 rounded-2xl p-4 bg-gradient-to-br ${skinItem?.id === "skin_fire" ? "from-orange-950 to-red-950 border-orange-600" : skinItem?.id === "skin_shadow" ? "from-slate-900 to-gray-950 border-slate-600" : skinItem?.id === "skin_champion" ? "from-yellow-950 to-amber-950 border-yellow-500" : "from-blue-950 to-indigo-950 border-blue-700"}`}>
             <div className="flex items-center gap-3"><div className="relative"><div className="text-5xl">{archData.icon}</div>{skinItem?.id === "skin_fire" && <div className="absolute -bottom-1 -right-1 text-base animate-pulse">🔥</div>}</div><div className="flex-1"><div className="flex items-center gap-2 flex-wrap"><span className="text-yellow-400 font-black text-lg">{char.name}</span>{titleItem && <span className="text-xs bg-yellow-900 text-yellow-300 px-2 py-0.5 rounded-full border border-yellow-800">{titleItem.icon} {titleItem.name}</span>}</div><div className="text-blue-300 text-xs">Nv.{lvl} · {archData.name}</div></div><div className="text-right"><div className="text-yellow-400 font-black">{char.gold}🪙</div><div className="text-orange-400 font-bold text-sm flex items-center gap-1 justify-end"><Flame className="w-3 h-3"/>{streak}d</div></div></div>
           </div>
 
           {coldAlerts.length > 0 && <ColdAlertsCard alerts={coldAlerts} />}
 
-          {/* Calendar */}
           <div className="bg-gray-900 border-4 border-gray-700 rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-yellow-400 font-black flex items-center gap-2"><Calendar className="w-4 h-4"/>CALENDARIO</h2>
@@ -368,7 +501,6 @@ const handleLogout = async () => {
             <div className="mt-3 pt-3 border-t border-gray-800 flex justify-between text-xs text-gray-600"><span>Tocá un día para ver el detalle</span><span className="text-yellow-600">{checks.length} entrenos total</span></div>
           </div>
 
-          {/* Body map */}
           <div className="bg-gray-900 border-4 border-gray-700 rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3"><h2 className="text-yellow-400 font-black">🗺️ MAPA MUSCULAR</h2><div className="flex gap-1 bg-gray-800 rounded-xl p-1"><button onClick={() => { setBodySide("front"); setSelectedMuscle(null); }} className={`px-3 py-1 rounded-lg text-xs font-black ${bodySide === "front" ? "bg-yellow-500 text-black" : "text-gray-400"}`}>FRENTE</button><button onClick={() => { setBodySide("back"); setSelectedMuscle(null); }} className={`px-3 py-1 rounded-lg text-xs font-black ${bodySide === "back" ? "bg-yellow-500 text-black" : "text-gray-400"}`}>ESPALDA</button></div></div>
             <div className="flex gap-4"><div style={{ width: "140px", flexShrink: 0 }}><BodyMap heatData={heatData} activeNow={todayMuscles} side={bodySide} onMuscleClick={setSelectedMuscle}/></div><div className="flex-1 space-y-2">{selectedMuscle ? (<div className="rounded-xl p-3 border-2" style={{ borderColor: heatColor(heatData[selectedMuscle], todayMuscles.has(selectedMuscle)), backgroundColor: "#111827" }}><div className="font-black text-white text-sm">{MUSCLE_MAP[selectedMuscle]?.name}</div><div className="text-sm mt-0.5 font-bold" style={{ color: heatColor(heatData[selectedMuscle], todayMuscles.has(selectedMuscle)) }}>{heatLabel(heatData[selectedMuscle])}</div><div className="text-xs text-gray-500 mt-1">{MUSCLE_MAP[selectedMuscle]?.exercises.slice(0,3).join(", ")}</div><button onClick={() => setSelectedMuscle(null)} className="text-xs text-gray-600 mt-1">✕ cerrar</button></div>) : <p className="text-gray-600 text-xs italic mt-2">Tocá un músculo 👆</p>}<div className="space-y-1">{[["#ef4444","Hoy/Ayer"],["#f97316","2-3 días"],["#eab308","4-6 días"],["#22c55e","1-2 sem"],["#6366f1","2+ sem ⚠️"],["#1f2937","Nunca"]].map(([c,l]) => (<div key={l} className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full border border-gray-700 flex-shrink-0" style={{ backgroundColor: c }}/><span className="text-xs text-gray-500">{l}</span></div>))}</div></div></div>
@@ -414,6 +546,9 @@ const handleLogout = async () => {
           </div>}
         </div>}
 
+        {/* ── ALDEA ── */}
+        {tab === "aldea" && <AldeaTab currentUid={uid} currentChar={char} />}
+
         {/* ── PROFILE ── */}
         {tab === "profile" && <div className="space-y-3">
           <div className="flex gap-1 bg-gray-900 border-2 border-gray-800 rounded-xl p-1">{[{id:"stats",l:"📊 Stats"},{id:"shop",l:"🛒 Tienda"},{id:"badges",l:"🏅 Logros"}].map(t => (<button key={t.id} onClick={() => setProfileTab(t.id)} className={`flex-1 py-2 rounded-lg text-xs font-black ${profileTab === t.id ? "bg-yellow-500 text-black" : "text-yellow-400"}`}>{t.l}</button>))}</div>
@@ -422,7 +557,17 @@ const handleLogout = async () => {
             <div className="bg-gray-900 border-2 border-gray-800 rounded-2xl p-4"><div className="text-gray-400 font-black text-xs mb-3">TUS NÚMEROS</div><div className="grid grid-cols-2 gap-2">{[{l:"Total",v:checks.length},{l:"Racha",v:`${streak}d`},{l:"Semana",v:getWeekChecks(checks)},{l:"Nivel",v:lvl},{l:"EXP",v:totalExp},{l:"Gold",v:`${char.gold}🪙`}].map(s => (<div key={s.l} className="bg-gray-800 rounded-xl p-3"><div className="text-yellow-400 font-black text-xl">{s.v}</div><div className="text-gray-600 text-xs">{s.l}</div></div>))}</div></div>
             <div className="bg-gray-900 border-2 border-gray-800 rounded-2xl p-4"><div className="text-gray-400 font-black text-xs mb-3">⚔️ STATS RPG</div><div className="grid grid-cols-3 gap-2">{[{l:"FUERZA",v:char.stats?.str||0,c:"text-red-400"},{l:"AGILIDAD",v:char.stats?.agi||0,c:"text-green-400"},{l:"VITALIDAD",v:char.stats?.vit||0,c:"text-blue-400"}].map(s => (<div key={s.l} className="bg-gray-800 rounded-xl p-3 text-center"><div className={`text-2xl font-black ${s.c}`}>{s.v}</div><div className="text-xs text-gray-600">{s.l}</div></div>))}</div></div>
             <div className="bg-gray-900 border-2 border-gray-800 rounded-2xl p-4"><div className="text-gray-400 font-black text-xs mb-3">POR CATEGORÍA</div>{Object.keys(EXERCISE_CATEGORIES).map(cat => { const cnt = checks.filter(c=>c.category===cat).length, mx = Math.max(...Object.keys(EXERCISE_CATEGORIES).map(c=>checks.filter(ch=>ch.category===c).length),1); return <div key={cat} className="mb-2"><div className="flex justify-between text-xs mb-1"><span className="text-gray-400">{cat}</span><span className="text-yellow-400 font-bold">{cnt}</span></div><div className="bg-gray-800 h-2 rounded-full"><div className={`h-2 rounded-full ${cat==="EMPUJE"?"bg-red-500":cat==="TIRÓN"?"bg-blue-500":cat==="PIERNA"?"bg-green-500":cat==="CARDIO"?"bg-orange-500":"bg-purple-500"}`} style={{width:`${(cnt/mx)*100}%`}}/></div></div>; })}</div>
-            <div className="bg-gray-800 border border-gray-700 rounded-xl p-3 flex items-center justify-between"><div><div className="text-gray-400 text-xs font-black">CUENTA</div><div className="text-white text-sm font-bold">👤 Invitado</div></div><button onClick={() => )} className="bg-gray-700 border border-gray-600 text-white text-xs font-black px-3 py-2 rounded-xl flex items-center gap-1"><LogIn className="w-3 h-3"/>Sincronizar</button></div>
+            <div className="bg-gray-800 border border-gray-700 rounded-xl p-3 flex items-center justify-between">
+              <div>
+                <div className="text-gray-400 text-xs font-black">CUENTA</div>
+                <div className="text-white text-sm font-bold">{authMode === "google" ? "🔗 Google" : "👤 Invitado"}</div>
+              </div>
+              {authMode !== "google" && (
+                <button onClick={handleGoogle} className="bg-white text-gray-900 text-xs font-black px-3 py-2 rounded-xl flex items-center gap-1">
+                  <LogIn className="w-3 h-3"/>Conectar Google
+                </button>
+              )}
+            </div>
           </div>}
 
           {profileTab === "shop" && <div className="space-y-3">
@@ -443,11 +588,19 @@ const handleLogout = async () => {
 
       {/* BOTTOM NAV */}
       <div className="fixed bottom-0 inset-x-0 bg-gray-900 border-t-4 border-gray-800 z-40">
-        <div className="max-w-xl mx-auto flex">{[{id:"home",icon:Home,l:"Inicio"},{id:"train",icon:Zap,l:"Entrenar"},{id:"profile",icon:User,l:"Perfil"}].map(t => (<button key={t.id} onClick={() => setTab(t.id)} className={`flex-1 flex flex-col items-center py-3 gap-0.5 ${tab === t.id ? "text-yellow-400" : "text-gray-600"}`}><t.icon className="w-5 h-5"/><span className="text-xs font-black">{t.l}</span>{tab === t.id && <div className="w-1 h-1 rounded-full bg-yellow-400"/>}</button>))}</div>
+        <div className="max-w-xl mx-auto flex">
+          {navTabs.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)} className={`flex-1 flex flex-col items-center py-3 gap-0.5 ${tab === t.id ? "text-yellow-400" : "text-gray-600"}`}>
+              <t.icon className="w-5 h-5"/>
+              <span className="text-xs font-black">{t.l}</span>
+              {tab === t.id && <div className="w-1 h-1 rounded-full bg-yellow-400"/>}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* FAB */}
-      {tab !== "profile" && <button onClick={() => setShowCheck(true)} className="fixed bottom-20 right-4 bg-yellow-500 border-4 border-yellow-300 rounded-full p-4 shadow-2xl z-50"><Plus className="w-6 h-6 text-black"/></button>}
+      {tab !== "profile" && tab !== "aldea" && <button onClick={() => setShowCheck(true)} className="fixed bottom-20 right-4 bg-yellow-500 border-4 border-yellow-300 rounded-full p-4 shadow-2xl z-50"><Plus className="w-6 h-6 text-black"/></button>}
 
       {/* MODALS */}
       {showCheck && <CheckModal nc={nc} setNc={setNc} exIn={exIn} setExIn={setExIn} useCustomEx={useCustomEx} setUseCustomEx={setUseCustomEx} char={char} checks={checks} editingCheck={editingCheck} onSubmit={editingCheck ? submitEditCheck : submitCheck} onClose={() => { setShowCheck(false); setEditingCheck(null); setNc({exercises:[],category:"",notes:""}); setExIn({exercise:"",customExercise:"",weight:"",reps:"",sets:"3"}); setUseCustomEx(false); }}/>}
@@ -471,4 +624,4 @@ const handleLogout = async () => {
       </div>}
     </div>
   );
-}  
+}
