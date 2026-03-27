@@ -39,17 +39,11 @@ export default function CheckModal({ nc, setNc, exIn, setExIn, useCustomEx, setU
           <h2 className="text-yellow-400 font-black text-lg">⚡ REGISTRAR</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-red-400"><X className="w-5 h-5"/></button>
         </div>
-        <div className="p-4 pb-0">
-  <div className="text-yellow-400 font-black text-sm mb-2">📅 FECHA</div>
-  <input
-    type="date"
-    value={nc.date || new Date().toISOString().split("T")[0]}
-    max={new Date().toISOString().split("T")[0]}
-    onChange={e => setNc(p => ({ ...p, date: e.target.value }))}
-    className="w-full px-3 py-2 bg-gray-800 text-yellow-400 border border-gray-700 rounded-xl text-sm outline-none"
-  />
-</div>
-        <div className="p-4 space-y-4">
+   <div className="p-4 space-y-4">
+          <div>
+            <div className="text-yellow-400 font-black text-sm mb-2">📅 FECHA</div>
+            <input type="date" value={nc.date || new Date().toISOString().split("T")[0]} max={new Date().toISOString().split("T")[0]} onChange={e => setNc(p => ({ ...p, date: e.target.value }))} className="w-full px-3 py-2 bg-gray-800 text-yellow-400 border border-gray-700 rounded-xl text-sm outline-none"/>
+          </div>
           {/* Category */}
           <div>
             <div className="text-yellow-400 font-black text-sm mb-2">¿QUÉ ENTRENASTE?</div>
