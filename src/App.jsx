@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { signInWithPopup, getRedirectResult, signOut } from "firebase/auth";;
+import { signInWithRedirect, getRedirectResult, signOut } from "firebase/auth";
 import { doc, setDoc, getDoc, collection, orderBy, limit, onSnapshot, query } from "firebase/firestore";
 import { auth, provider, db } from "./firebase.js";
 import { Flame, Plus, Check, Play, Lock, ChevronDown, ChevronUp, Edit2, Trash2, User, Home, Zap, LogIn, LogOut, Calendar, FileText, X, Users } from "lucide-react";
@@ -9,7 +9,7 @@ import { storage, calcLevel, expForLevel, calcStreak, sameDay, getWeekChecks, ca
 import BodyMap from "./components/BodyMap.jsx";
 import { WeekCalendar, MonthCalendar, DayDetailModal } from "./components/Calendar.jsx";
 import CheckModal from "./components/CheckModal.jsx";
-import ImportModal from "./components/ImportModal.jsx";
+import AldeaTab from "./components/Aldea.jsx";
 
 // ── LOGIN ──
 function LoginScreen({ onGuest, onGoogle }) {
@@ -128,103 +128,6 @@ function ColdAlertsCard({ alerts }) {
   );
 }
 
-// ── ALDEA ──
-function AldeaTab({ currentUid, currentChar }) {
-  const [members, setMembers] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const q = query(collection(db, "users"), orderBy("updatedAt", "desc"), limit(20));
-    const unsub = onSnapshot(q, (snap) => {
-      const data = snap.docs
-        .map(d => ({ uid: d.id, ...d.data() }))
-        .filter(u => u.char && u.uid !== currentUid);
-      setMembers(data);
-      setLoading(false);
-    });
-    return () => unsub();
-  }, [currentUid]);
-
-  if (loading) return <div className="text-center py-12 text-gray-600">Cargando aldea...</div>;
-
-  return (
-    <div className="space-y-3">
-      <div className="bg-gray-900 border-2 border-yellow-800 rounded-2xl p-4">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-2xl">🏰</span>
-          <span className="text-yellow-400 font-black text-lg">ALDEA GYMQUEST</span>
-        </div>
-        <p className="text-gray-500 text-xs">{members.length + 1} guerrero{members.length !== 0 ? "s" : ""} activo{members.length !== 0 ? "s" : ""}</p>
-      </div>
-
-      {/* Tu card */}
-      {currentChar && <MemberCard char={currentChar} isYou={true}/>}
-
-      {members.length === 0 && (
-        <div className="text-gray-600 text-center py-8 text-sm">
-          Sos el primero en la aldea 🥇<br/>
-          <span className="text-gray-700 text-xs">Invitá amigos para ver su progreso acá</span>
-        </div>
-      )}
-
-      {members.map(m => <MemberCard key={m.uid} char={m.char} checks={m.checks || []}/>)}
-    </div>
-  );
-}
-
-function MemberCard({ char, checks = [], isYou = false }) {
-  const lvl = calcLevel(char?.exp || 0);
-  const streak = calcStreak(checks);
-  const curLvlExp = expForLevel(lvl), nextLvlExp = expForLevel(lvl + 1);
-  const expPct = Math.min(((( char?.exp || 0) - curLvlExp) / (nextLvlExp - curLvlExp)) * 100, 100);
-  const archData = ARCHETYPES[char?.archetype] || ARCHETYPES.barbarian;
-  const lastCheck = [...checks].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
-
-  return (
-    <div className={`bg-gray-900 border-2 rounded-2xl p-4 ${isYou ? "border-yellow-600" : "border-gray-700"}`}>
-      <div className="flex items-center gap-3 mb-3">
-        <div className="text-3xl">{archData.icon}</div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-white font-black">{char?.name}</span>
-            {isYou && <span className="text-xs bg-yellow-900 text-yellow-400 px-1.5 py-0.5 rounded-full border border-yellow-800">Vos</span>}
-          </div>
-          <div className="text-gray-500 text-xs">Nv.{lvl} · {archData.name}</div>
-        </div>
-        <div className="text-right">
-          <div className="text-orange-400 text-sm font-black flex items-center gap-1 justify-end">
-            <Flame className="w-3 h-3"/>{streak}d
-          </div>
-          <div className="text-gray-600 text-xs">{checks.length} entrenos</div>
-        </div>
-      </div>
-
-      {/* Barra EXP */}
-      <div className="mb-2">
-        <div className="flex justify-between text-xs text-gray-600 mb-1">
-          <span>{char?.exp || 0} EXP</span>
-          <span>Nv.{lvl + 1}</span>
-        </div>
-        <div className="bg-gray-800 h-2 rounded-full overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all" style={{ width: `${expPct}%` }}/>
-        </div>
-      </div>
-
-      {/* Último entreno */}
-      {lastCheck && (
-        <div className="bg-gray-800 rounded-xl px-3 py-2 flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${lastCheck.category === "EMPUJE" ? "bg-red-500" : lastCheck.category === "TIRÓN" ? "bg-blue-500" : lastCheck.category === "PIERNA" ? "bg-green-500" : lastCheck.category === "CARDIO" ? "bg-orange-500" : "bg-purple-500"}`}/>
-          <div className="flex-1 text-xs text-gray-400">
-            <span className="font-bold text-gray-300">{lastCheck.category}</span>
-            <span className="mx-1">·</span>
-            {lastCheck.exercises?.slice(0, 2).map(e => e.exercise).join(", ")}
-          </div>
-          <span className="text-green-400 text-xs font-black">+{lastCheck.exp || 0} XP</span>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ── MAIN APP ──
 export default function GymQuest() {
@@ -326,26 +229,7 @@ export default function GymQuest() {
 
   const handleGoogle = async () => {
     try {
-      const result = await signInWithPopup(auth, provider);
-const user = result.user;
-storage.set("gq_auth", "google");
-storage.set("gq_uid", user.uid);
-setUid(user.uid);
-const snap = await getDoc(doc(db, "users", user.uid));
-if (snap.exists()) {
-  const data = snap.data();
-  if (data.char) saveChar(data.char);
-  if (data.checks) saveChecks(data.checks);
-  if (data.plans) savePlans(data.plans);
-  if (data.owned) saveOwned(data.owned);
-} else if (char) {
-  await setDoc(doc(db, "users", user.uid), {
-    char, checks, plans, owned,
-    updatedAt: new Date().toISOString()
-  });
-}
-setAuthMode("google");
-showMsg(`✅ Bienvenido ${user.displayName}!`);
+      await signInWithRedirect(auth, provider);
     } catch (e) {
       showMsg("Error al conectar con Google", "err");
     }
@@ -478,7 +362,7 @@ showMsg(`✅ Bienvenido ${user.displayName}!`);
   const navTabs = [
     { id: "home", icon: Home, l: "Inicio" },
     { id: "train", icon: Zap, l: "Entrenar" },
-    ...(authMode === "google" ? [{ id: "aldea", icon: Users, l: "Aldea" }] : []),
+    { id: "aldea", icon: Users, l: "Aldea" },
     { id: "profile", icon: User, l: "Perfil" },
   ];
 
@@ -568,7 +452,7 @@ showMsg(`✅ Bienvenido ${user.displayName}!`);
         </div>}
 
         {/* ── ALDEA ── */}
-        {tab === "aldea" && <AldeaTab currentUid={uid} currentChar={char} />}
+        {tab === "aldea" && <AldeaTab currentUid={uid} currentChar={char} currentChecks={checks} authMode={authMode} char={char} checks={checks} showMsg={showMsg}/>}
 
         {/* ── PROFILE ── */}
         {tab === "profile" && <div className="space-y-3">
