@@ -470,24 +470,80 @@ export default function GymQuest() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white pb-24" style={{ fontFamily: "monospace" }}>
+    <div className="min-h-screen bg-gray-950 text-white pb-24 lg:pb-0" style={{ fontFamily: "monospace" }}>
       {toast && <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 rounded-2xl font-black text-sm shadow-2xl pointer-events-none ${toast.type === "err" ? "bg-red-600" : toast.type === "level" ? "bg-yellow-500 text-black" : toast.type === "badge" ? "bg-purple-600" : "bg-green-600"}`}>{toast.msg}</div>}
 
       {/* HEADER */}
       <div className="bg-gray-900 border-b-4 border-yellow-700 px-4 py-3 sticky top-0 z-40">
-        <div className="max-w-xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2"><span className="text-2xl">{RACES[char.race]?.icon}</span><div><div className="flex items-center gap-1.5"><span className="text-yellow-400 font-black">{char.name}</span>{titleItem && <span className="text-xs text-yellow-600 bg-yellow-950 px-1.5 py-0.5 rounded-full border border-yellow-800">{titleItem.icon}</span>}</div><div className="text-green-400 text-xs">Nv.{lvl} · {archData.name}</div></div></div>
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {authMode === "google" && <span className="text-xs text-blue-400 bg-blue-950 px-2 py-0.5 rounded-full border border-blue-800">🔗 Google</span>}
+            <span className="text-yellow-400 font-black text-xl hidden lg:block">⚔️ GYMQUEST</span>
+            <div className="w-px h-6 bg-gray-700 hidden lg:block"/>
+            <span className="text-2xl">{RACES[char.race]?.icon}</span>
+            <div>
+              <div className="flex items-center gap-1.5"><span className="text-yellow-400 font-black">{char.name}</span>{titleItem && <span className="text-xs text-yellow-600 bg-yellow-950 px-1.5 py-0.5 rounded-full border border-yellow-800">{titleItem.icon}</span>}</div>
+              <div className="text-green-400 text-xs">Nv.{lvl} · {archData.name}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* Desktop nav */}
+            <div className="hidden lg:flex gap-1 bg-gray-800 rounded-xl p-1">
+              {navTabs.map(t => (
+                <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black ${tab === t.id ? "bg-yellow-500 text-black" : "text-gray-400 hover:text-white"}`}>
+                  <t.icon className="w-3.5 h-3.5"/>{t.l}
+                </button>
+              ))}
+            </div>
+            {authMode === "google" && <span className="text-xs text-blue-400 bg-blue-950 px-2 py-0.5 rounded-full border border-blue-800 hidden lg:block">🔗 Google</span>}
             <div className="flex items-center gap-1"><Flame className="w-4 h-4 text-orange-500"/><span className="text-orange-400 font-black text-sm">{streak}</span></div>
             <span className="text-yellow-400 font-bold text-sm">{char.gold}🪙</span>
             <button onClick={handleLogout} className="text-gray-600 hover:text-gray-400"><LogOut className="w-4 h-4"/></button>
           </div>
         </div>
-        <div className="max-w-xl mx-auto mt-2"><div className="bg-gray-800 h-2 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-700" style={{ width: `${expPct}%` }}/></div><div className="flex justify-between text-xs text-gray-600 mt-0.5"><span>{totalExp - curLvlExp} EXP</span><span>Nv.{lvl + 1} en {nextLvlExp - totalExp}</span></div></div>
+        <div className="max-w-6xl mx-auto mt-2"><div className="bg-gray-800 h-2 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-700" style={{ width: `${expPct}%` }}/></div><div className="flex justify-between text-xs text-gray-600 mt-0.5"><span>{totalExp - curLvlExp} EXP</span><span>Nv.{lvl + 1} en {nextLvlExp - totalExp}</span></div></div>
       </div>
 
-      <div className="max-w-xl mx-auto px-4 pt-4">
+      {/* LAYOUT */}
+      <div className="max-w-6xl mx-auto px-4 pt-4 lg:flex lg:gap-6">
+
+        {/* SIDEBAR — solo desktop */}
+        <div className="hidden lg:block w-72 flex-shrink-0">
+          <div className="sticky top-28 space-y-3">
+            {/* Char card */}
+            <div className={`border-4 rounded-2xl p-4 bg-gradient-to-br ${skinItem?.id === "skin_fire" ? "from-orange-950 to-red-950 border-orange-600" : skinItem?.id === "skin_shadow" ? "from-slate-900 to-gray-950 border-slate-600" : skinItem?.id === "skin_champion" ? "from-yellow-950 to-amber-950 border-yellow-500" : "from-blue-950 to-indigo-950 border-blue-700"}`}>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="relative"><div className="text-5xl">{archData.icon}</div>{skinItem?.id === "skin_fire" && <div className="absolute -bottom-1 -right-1 text-base animate-pulse">🔥</div>}</div>
+                <div className="flex-1">
+                  <div className="text-yellow-400 font-black">{char.name}</div>
+                  <div className="text-blue-300 text-xs">Nv.{lvl} · {archData.name}</div>
+                  {authMode === "google" && <div className="text-blue-400 text-xs mt-0.5">🔗 Google</div>}
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div><div className="text-yellow-400 font-black">{checks.length}</div><div className="text-gray-600 text-xs">Entrenos</div></div>
+                <div><div className="text-orange-400 font-black">{streak}d</div><div className="text-gray-600 text-xs">Racha</div></div>
+                <div><div className="text-green-400 font-black">{getWeekChecks(checks)}</div><div className="text-gray-600 text-xs">Semana</div></div>
+              </div>
+            </div>
+            {/* Stats RPG */}
+            <div className="bg-gray-900 border-2 border-gray-800 rounded-2xl p-3">
+              <div className="text-gray-500 font-black text-xs mb-2">⚔️ STATS</div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                {[{l:"STR",v:char.stats?.str||0,c:"text-red-400"},{l:"AGI",v:char.stats?.agi||0,c:"text-green-400"},{l:"VIT",v:char.stats?.vit||0,c:"text-blue-400"}].map(s => (
+                  <div key={s.l} className="bg-gray-800 rounded-xl p-2"><div className={`text-lg font-black ${s.c}`}>{s.v}</div><div className="text-xs text-gray-600">{s.l}</div></div>
+                ))}
+              </div>
+            </div>
+            {/* Semana */}
+            <div className="bg-gray-900 border-2 border-green-900 rounded-2xl p-3">
+              <div className="flex justify-between items-center mb-2"><span className="text-green-400 font-black text-xs">SEMANA</span><span className="text-green-300 font-black text-xs">{getWeekChecks(checks)}/{char.weeklyGoal}</span></div>
+              <div className="flex gap-1">{Array.from({ length: char.weeklyGoal }, (_, i) => <div key={i} className={`flex-1 h-2 rounded-full ${i < getWeekChecks(checks) ? "bg-green-500" : "bg-gray-800 border border-gray-700"}`}/>)}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* MAIN CONTENT */}
+        <div className="flex-1 min-w-0">
 
         {/* ── HOME ── */}
         {tab === "home" && <div className="space-y-4">
@@ -554,7 +610,6 @@ export default function GymQuest() {
           </div>}
         </div>}
 
-        {/* ── ALDEA ── */}
         {tab === "aldea" && <AldeaTab currentUid={uid} currentChar={char} currentChecks={checks} authMode={authMode} char={char} checks={checks} showMsg={showMsg}/>}
 
         {/* ── PROFILE ── */}
@@ -591,11 +646,12 @@ export default function GymQuest() {
             <div className="text-gray-500 font-black text-xs mt-1">🎯 MISIONES</div>
             {[{t:"Primer golpe",d:"1 entrenamiento",target:1,current:checks.length,xp:100},{t:"Guerrero",d:"10 entrenamientos",target:10,current:checks.length,xp:300},{t:"Racha ardiente",d:"5 días seguidos",target:5,current:streak,xp:400},{t:"Centurión",d:"25 entrenamientos",target:25,current:checks.length,xp:700},{t:"Leyenda",d:"100 entrenamientos",target:100,current:checks.length,xp:2000}].map((m,i) => { const done=m.current>=m.target; return <div key={i} className={`border-2 rounded-2xl p-3 ${done?"border-green-800 bg-green-950":"border-gray-800 bg-gray-900"}`}><div className="flex justify-between items-center mb-1.5"><div><div className={`font-black text-sm ${done?"text-green-400 line-through":"text-white"}`}>{m.t}</div><div className="text-gray-600 text-xs">{m.d}</div></div><div className="text-green-400 text-xs font-black">+{m.xp} XP</div></div><div className="bg-gray-800 h-1.5 rounded-full"><div className={`h-1.5 rounded-full ${done?"bg-green-500":"bg-yellow-500"}`} style={{width:`${Math.min((m.current/m.target)*100,100)}%`}}/></div><div className="text-gray-700 text-xs mt-0.5 text-right">{Math.min(m.current,m.target)}/{m.target}</div></div>; })}
           </div>}
-        </div>}
-      </div>
+        </div>{/* end profile */}
+      </div>{/* end main content */}
+      </div>{/* end layout flex */}
 
-      {/* BOTTOM NAV */}
-      <div className="fixed bottom-0 inset-x-0 bg-gray-900 border-t-4 border-gray-800 z-40">
+      {/* BOTTOM NAV — solo mobile */}
+      <div className="fixed bottom-0 inset-x-0 bg-gray-900 border-t-4 border-gray-800 z-40 lg:hidden">
         <div className="max-w-xl mx-auto flex">
           {navTabs.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)} className={`flex-1 flex flex-col items-center py-3 gap-0.5 ${tab === t.id ? "text-yellow-400" : "text-gray-600"}`}>
@@ -608,7 +664,7 @@ export default function GymQuest() {
       </div>
 
       {/* FAB */}
-      {tab !== "profile" && tab !== "aldea" && <button onClick={() => setShowCheck(true)} className="fixed bottom-20 right-4 bg-yellow-500 border-4 border-yellow-300 rounded-full p-4 shadow-2xl z-50"><Plus className="w-6 h-6 text-black"/></button>}
+      {tab !== "profile" && tab !== "aldea" && <button onClick={() => setShowCheck(true)} className="fixed bottom-20 right-4 lg:bottom-6 bg-yellow-500 border-4 border-yellow-300 rounded-full p-4 shadow-2xl z-50"><Plus className="w-6 h-6 text-black"/></button>}
 
       {/* MODALS */}
       {showCheck && <CheckModal nc={nc} setNc={setNc} exIn={exIn} setExIn={setExIn} useCustomEx={useCustomEx} setUseCustomEx={setUseCustomEx} char={char} checks={checks} editingCheck={editingCheck} onSubmit={editingCheck ? submitEditCheck : submitCheck} onClose={() => { setShowCheck(false); setEditingCheck(null); setNc({exercises:[],category:"",notes:""}); setExIn({exercise:"",customExercise:"",weight:"",reps:"",sets:"3"}); setUseCustomEx(false); }}/>}
