@@ -266,13 +266,6 @@ export default function GymQuest() {
     showMsg("Error al conectar con Google", "err");
   }
 };
-  // Nueva cuenta sin datos — limpiar para ir a CharCreation
-  saveChar(null);
-  saveChecks([]);
-  savePlans([]);
-  saveOwned([]);
-}
-setAuthMode("google");
 setAuthMode("google");
 showMsg(`✅ Bienvenido ${user.displayName}!`);
     } catch (e) {
