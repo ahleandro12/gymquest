@@ -262,16 +262,6 @@ export default function GymQuest() {
     setUid(user.uid);
     setAuthMode("google");
     showMsg(`✅ Bienvenido ${user.displayName}!`);
-  } catch (e) {
-    showMsg("Error al conectar con Google", "err");
-  }
-};
-setAuthMode("google");
-showMsg(`✅ Bienvenido ${user.displayName}!`);
-    } catch (e) {
-      showMsg("Error al conectar con Google", "err");
-    }
-  };
 
   const handleLogout = async () => {
     if (authMode === "google") await signOut(auth);
