@@ -317,7 +317,7 @@ const handleLogout = async () => {
   })();
 
   if (loading) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><div className="text-center"><div className="text-6xl mb-3 animate-pulse">⚔️</div><div className="text-yellow-400 font-black text-2xl" style={{ fontFamily: "monospace" }}>GYMQUEST</div></div></div>;
-  if (!authMode) return <LoginScreen onGuest={handleGuest} onGoogle={() => showMsg("Google login próximamente 🔜")}/>;
+  if (!authMode) return <LoginScreen onGuest={handleGuest} onGoogle={handleGoogle}/>;
   if (!char) return <CharCreation onDone={saveChar} showMsg={showMsg} toast={toast}/>;
 
   const ExInputInline = ({ value, onChange, useCustom, onToggleCustom, category }) => (
