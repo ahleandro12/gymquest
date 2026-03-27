@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
+import { signInWithRedirect, getRedirectResult, signOut } from "firebase/auth";
 import { doc, setDoc, getDoc, collection, orderBy, limit, onSnapshot, query } from "firebase/firestore";
 import { auth, provider, db } from "./firebase.js";
 import { Flame, Plus, Check, Play, Lock, ChevronDown, ChevronUp, Edit2, Trash2, User, Home, Zap, LogIn, LogOut, Calendar, FileText, X, Users } from "lucide-react";
@@ -275,7 +275,30 @@ export default function GymQuest() {
     if (eq) { setEquippedTitle(eq.title || null); setEquippedSkin(eq.skin || null); }
     const savedUid = storage.get("gq_uid");
     if (savedUid) setUid(savedUid);
-    setLoading(false);
+
+    // Capturar resultado del redirect de Google
+    getRedirectResult(auth).then(async (result) => {
+      if (!result) { setLoading(false); return; }
+      const user = result.user;
+      storage.set("gq_auth", "google");
+      storage.set("gq_uid", user.uid);
+      setUid(user.uid);
+      const snap = await getDoc(doc(db, "users", user.uid));
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data.char) { storage.set("gq_char", data.char); setChar(data.char); }
+        if (data.checks) { storage.set("gq_checks", data.checks); setChecks(data.checks); }
+        if (data.plans) { storage.set("gq_plans", data.plans); setPlans(data.plans); }
+        if (data.owned) { storage.set("gq_owned", data.owned); setOwned(data.owned); }
+      } else if (c) {
+        await setDoc(doc(db, "users", user.uid), {
+          char: c, checks: ch || [], plans: pl || [], owned: ow || [],
+          updatedAt: new Date().toISOString()
+        });
+      }
+      setAuthMode("google");
+      setLoading(false);
+    }).catch(() => { setLoading(false); });
   }, []);
 
   // Sincronizar a Firestore cuando cambian datos (solo usuarios Google)
@@ -303,28 +326,7 @@ export default function GymQuest() {
 
   const handleGoogle = async () => {
     try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      storage.set("gq_auth", "google");
-      storage.set("gq_uid", user.uid);
-      setUid(user.uid);
-      const snap = await getDoc(doc(db, "users", user.uid));
-      if (snap.exists()) {
-        const data = snap.data();
-        if (data.char) saveChar(data.char);
-        if (data.checks) saveChecks(data.checks);
-        if (data.plans) savePlans(data.plans);
-        if (data.owned) saveOwned(data.owned);
-      } else if (char) {
-        // Migrar datos de invitado
-        await setDoc(doc(db, "users", user.uid), {
-          char: { ...char, name: char.name || user.displayName },
-          checks, plans, owned,
-          updatedAt: new Date().toISOString()
-        });
-      }
-      setAuthMode("google");
-      showMsg(`✅ Bienvenido ${user.displayName}!`);
+      await signInWithRedirect(auth, provider);
     } catch (e) {
       showMsg("Error al conectar con Google", "err");
     }
