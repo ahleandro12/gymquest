@@ -19,7 +19,7 @@ function LoginScreen({ onGuest, onGoogle }) {
         <div className="text-center mb-8"><div className="text-7xl mb-3">⚔️</div><h1 className="text-5xl font-black text-yellow-400">GYMQUEST</h1><p className="text-gray-500 text-sm mt-2">Tu aventura fitness comienza acá</p></div>
         <div className="space-y-3">
           <button onClick={onGuest} className="w-full bg-yellow-500 border-4 border-yellow-300 text-black font-black py-4 rounded-2xl text-lg flex items-center justify-center gap-3"><Zap className="w-6 h-6"/>ENTRAR COMO INVITADO</button>
-          <button onClick={onGoogle} className="w-full bg-gray-800 border-2 border-gray-600 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3"><span className="text-xl">🔗</span>SINCRONIZAR CON GOOGLE<span className="text-xs text-gray-500">(próximamente)</span></button>
+          <button onClick={onGoogle} className="w-full bg-gray-800 border-2 border-gray-600 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3"><span className="text-xl"> handleGoogle
           <p className="text-center text-gray-700 text-xs mt-4">Como invitado tu progreso se guarda en este dispositivo</p>
         </div>
       </div>
