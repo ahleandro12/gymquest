@@ -335,21 +335,33 @@ export default function AldeaTab({ currentUid, currentChar, currentChecks, authM
       </div>
 
       {!isGoogle && (
-        <div className="bg-gray-900 border-2 border-purple-700 rounded-2xl p-4 text-center">
-          <div className="text-3xl mb-2">🏰</div>
-          <div className="text-white font-black mb-1">Querés unirte a la Aldea?</div>
-          <p className="text-gray-500 text-xs mb-3">Mandá una solicitud y el admin te acepta</p>
-          {solicitudEnviada ? (
-            <div className="bg-green-950 border border-green-800 rounded-xl p-3">
-              <div className="text-green-400 font-black text-sm">✅ Solicitud enviada</div>
-              <div className="text-gray-500 text-xs mt-1">Esperá que el admin la acepte</div>
+        <div className="space-y-3">
+          <div className="bg-gray-900 border-2 border-purple-700 rounded-2xl p-3 flex items-center justify-between">
+            <div>
+              <div className="text-purple-300 font-black text-sm">👁️ Modo observador</div>
+              <div className="text-gray-600 text-xs">Conectá con Google para chatear</div>
             </div>
-          ) : (
-            <button onClick={handleSolicitud} className="w-full bg-purple-700 border-2 border-purple-500 text-white font-black py-3 rounded-xl flex items-center justify-center gap-2">
-              <Users className="w-4 h-4"/>SOLICITAR UNIRSE
-            </button>
+            {solicitudEnviada ? (
+              <div className="text-green-400 text-xs font-black">✅ Solicitud enviada</div>
+            ) : (
+              <button onClick={handleSolicitud} className="bg-purple-700 border border-purple-500 text-white font-black py-1.5 px-3 rounded-xl text-xs flex items-center gap-1">
+                <Users className="w-3 h-3"/>Unirme
+              </button>
+            )}
+          </div>
+          <div className="flex gap-1 bg-gray-900 border-2 border-gray-800 rounded-xl p-1">
+            {[{id:"feed",l:"🏰 Feed"},{id:"ranking",l:"🏆 Ranking"}].map(t => (
+              <button key={t.id} onClick={() => setAldeaTab(t.id)} className={`flex-1 py-2 rounded-lg text-xs font-black ${aldeaTab === t.id ? "bg-yellow-500 text-black" : "text-yellow-400"}`}>{t.l}</button>
+            ))}
+          </div>
+          {aldeaTab === "feed" && (
+            <div className="space-y-3">
+              {allMembers.map((m, i) => (
+                <MemberCard key={m.uid} member={m} rank={i + 1} isYou={false} isAdmin={false} onKick={() => {}}/>
+              ))}
+            </div>
           )}
-          <p className="text-gray-700 text-xs mt-3">O conectá con Google para acceso automático</p>
+          {aldeaTab === "ranking" && <RankingTab members={allMembers}/>}
         </div>
       )}
 
