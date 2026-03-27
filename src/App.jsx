@@ -228,40 +228,44 @@ export default function GymQuest() {
   const handleGuest = () => { storage.set("gq_auth", "guest"); setAuthMode("guest"); };
 
   const handleGoogle = async () => {
-  try {
-    const result = await signInWithPopup(auth, provider);
-    const user = result.user;
-    const snap = await getDoc(doc(db, "users", user.uid));
-    if (snap.exists()) {
-      const data = snap.data();
-      storage.set("gq_char", data.char || null);
-      storage.set("gq_checks", data.checks || []);
-      storage.set("gq_plans", data.plans || []);
-      storage.set("gq_owned", data.owned || []);
-      setChar(data.char || null);
-      setChecks(data.checks || []);
-      setPlans(data.plans || []);
-      setOwned(data.owned || []);
-    } else if (char) {
-      await setDoc(doc(db, "users", user.uid), {
-        char, checks, plans, owned,
-        updatedAt: new Date().toISOString()
-      });
-    } else {
-      storage.set("gq_char", null);
-      storage.set("gq_checks", []);
-      storage.set("gq_plans", []);
-      storage.set("gq_owned", []);
-      setChar(null);
-      setChecks([]);
-      setPlans([]);
-      setOwned([]);
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      const snap = await getDoc(doc(db, "users", user.uid));
+      if (snap.exists()) {
+        const data = snap.data();
+        storage.set("gq_char", data.char || null);
+        storage.set("gq_checks", data.checks || []);
+        storage.set("gq_plans", data.plans || []);
+        storage.set("gq_owned", data.owned || []);
+        setChar(data.char || null);
+        setChecks(data.checks || []);
+        setPlans(data.plans || []);
+        setOwned(data.owned || []);
+      } else if (char) {
+        await setDoc(doc(db, "users", user.uid), {
+          char, checks, plans, owned,
+          updatedAt: new Date().toISOString()
+        });
+      } else {
+        storage.set("gq_char", null);
+        storage.set("gq_checks", []);
+        storage.set("gq_plans", []);
+        storage.set("gq_owned", []);
+        setChar(null);
+        setChecks([]);
+        setPlans([]);
+        setOwned([]);
+      }
+      storage.set("gq_auth", "google");
+      storage.set("gq_uid", user.uid);
+      setUid(user.uid);
+      setAuthMode("google");
+      showMsg(`✅ Bienvenido ${user.displayName}!`);
+    } catch (e) {
+      showMsg("Error al conectar con Google", "err");
     }
-    storage.set("gq_auth", "google");
-    storage.set("gq_uid", user.uid);
-    setUid(user.uid);
-    setAuthMode("google");
-    showMsg(`✅ Bienvenido ${user.displayName}!`);
+  };
 
   const handleLogout = async () => {
     if (authMode === "google") await signOut(auth);
