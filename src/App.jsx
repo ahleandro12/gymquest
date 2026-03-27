@@ -142,6 +142,7 @@ export default function GymQuest() {
 
   // Modals
   const [showCheck, setShowCheck] = useState(false);
+  const [editingCheck, setEditingCheck] = useState(null);
   const [showImport, setShowImport] = useState(false);
   const [showPlanEditor, setShowPlanEditor] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
@@ -177,7 +178,7 @@ export default function GymQuest() {
     if (!nc.category) { showMsg("Elegí una categoría", "err"); return; }
     if (!nc.exercises.length) { showMsg("Agregá al menos un ejercicio", "err"); return; }
     const { exp, gold } = calcPoints(nc, char);
-    const obj = { id: Date.now(), timestamp: nc.date ? new Date(nc.date).toISOString() : new Date().toISOString(), ...nc, exp, gold };
+    const obj = { id: Date.now(), timestamp: new Date().toISOString(), ...nc, exp, gold };
     const newChecks = [...checks, obj]; saveChecks(newChecks);
     const newExp = (char.exp || 0) + exp, newLvl = calcLevel(newExp), oldLvl = calcLevel(char.exp || 0);
     const stats = { ...char.stats };
@@ -198,6 +199,40 @@ export default function GymQuest() {
     saveOwned([...owned, item.id]); saveChar({ ...char, gold: (char.gold || 0) - item.cost }); showMsg(`✅ Compraste: ${item.name}`);
   };
   const equipItem = item => { if (item.type === "title") saveEquipped(item.id, equippedSkin); if (item.type === "skin") saveEquipped(equippedTitle, item.id); };
+
+  const deleteCheck = (checkId) => {
+    const check = checks.find(c => c.id === checkId);
+    if (!check) return;
+    const newChecks = checks.filter(c => c.id !== checkId);
+    saveChecks(newChecks);
+    const newExp = Math.max(0, (char.exp || 0) - (check.exp || 0));
+    const newGold = Math.max(0, (char.gold || 0) - (check.gold || 0));
+    saveChar({ ...char, exp: newExp, gold: newGold, level: calcLevel(newExp) });
+    showMsg("🗑️ Check eliminado");
+  };
+
+  const openEditCheck = (check) => {
+    setEditingCheck(check.id);
+    setNc({ exercises: check.exercises || [], category: check.category, notes: check.notes || "", date: check.timestamp.split("T")[0] });
+    setShowCheck(true);
+  };
+
+  const submitEditCheck = () => {
+    if (!nc.category) { showMsg("Elegí una categoría", "err"); return; }
+    if (!nc.exercises.length) { showMsg("Agregá al menos un ejercicio", "err"); return; }
+    const oldCheck = checks.find(c => c.id === editingCheck);
+    const { exp, gold } = calcPoints(nc, char);
+    const updatedCheck = { ...oldCheck, ...nc, timestamp: nc.date ? new Date(nc.date).toISOString() : oldCheck.timestamp, exp, gold };
+    const newChecks = checks.map(c => c.id === editingCheck ? updatedCheck : c);
+    saveChecks(newChecks);
+    const expDiff = exp - (oldCheck.exp || 0);
+    const goldDiff = gold - (oldCheck.gold || 0);
+    const newExp = Math.max(0, (char.exp || 0) + expDiff);
+    const newGold = Math.max(0, (char.gold || 0) + goldDiff);
+    saveChar({ ...char, exp: newExp, gold: newGold, level: calcLevel(newExp) });
+    showMsg(`✅ Check actualizado · ${expDiff >= 0 ? "+" : ""}${expDiff} EXP`);
+    setShowCheck(false); setEditingCheck(null); setNc({ exercises: [], category: "", notes: "" }); setExIn({ exercise: "", customExercise: "", weight: "", reps: "", sets: "3" }); setUseCustomEx(false);
+  };
 
   const handleImport = importedPlans => {
     const newPlans = [...plans, ...importedPlans.map(p => ({ ...p, id: Date.now() + Math.random(), exercises: (p.exercises || []).map((ex, i) => ({ ...ex, id: Date.now() + i })) }))];
@@ -308,7 +343,7 @@ export default function GymQuest() {
 
           {trainTab === "check" && <div className="space-y-3">
             <button onClick={() => setShowCheck(true)} className="w-full bg-gradient-to-r from-green-700 to-emerald-700 border-4 border-green-500 text-white font-black py-5 rounded-2xl text-xl flex items-center justify-center gap-3"><Plus className="w-7 h-7"/>REGISTRAR ENTRENAMIENTO</button>
-            <div className="bg-gray-900 border-2 border-gray-800 rounded-2xl p-4"><div className="text-gray-500 font-black text-xs mb-3">ÚLTIMAS SESIONES</div>{checks.length === 0 && <p className="text-gray-700 text-sm text-center py-4">Sin entrenamientos aún</p>}{[...checks].sort((a,b) => new Date(b.timestamp)-new Date(a.timestamp)).slice(0,5).map(c => <div key={c.id} className="flex items-center gap-3 py-2.5 border-b border-gray-800 last:border-0"><div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${c.category==="EMPUJE"?"bg-red-500":c.category==="TIRÓN"?"bg-blue-500":c.category==="PIERNA"?"bg-green-500":c.category==="CARDIO"?"bg-orange-500":"bg-purple-500"}`}/><div className="flex-1"><div className="text-white font-bold text-sm">{c.category}</div><div className="text-gray-600 text-xs">{new Date(c.timestamp).toLocaleDateString("es-AR")} · {c.exercises?.slice(0,2).map(e=>e.exercise).join(", ")||"sin ejercicios"}</div></div><div className="text-green-400 text-xs font-black">+{c.exp||0} XP</div></div>)}</div>
+            <div className="bg-gray-900 border-2 border-gray-800 rounded-2xl p-4"><div className="text-gray-500 font-black text-xs mb-3">ÚLTIMAS SESIONES</div>{checks.length === 0 && <p className="text-gray-700 text-sm text-center py-4">Sin entrenamientos aún</p>}{[...checks].sort((a,b) => new Date(b.timestamp)-new Date(a.timestamp)).slice(0,5).map(c => <div key={c.id} className="flex items-center gap-3 py-2.5 border-b border-gray-800 last:border-0"><div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${c.category==="EMPUJE"?"bg-red-500":c.category==="TIRÓN"?"bg-blue-500":c.category==="PIERNA"?"bg-green-500":c.category==="CARDIO"?"bg-orange-500":"bg-purple-500"}`}/><div className="flex-1"><div className="text-white font-bold text-sm">{c.category}</div><div className="text-gray-600 text-xs">{new Date(c.timestamp).toLocaleDateString("es-AR")} · {c.exercises?.slice(0,2).map(e=>e.exercise).join(", ")||"sin ejercicios"}</div></div><div className="text-green-400 text-xs font-black mr-2">+{c.exp||0} XP</div><button onClick={() => openEditCheck(c)} className="text-gray-600 hover:text-yellow-400 p-1"><Edit2 className="w-3.5 h-3.5"/></button><button onClick={() => deleteCheck(c.id)} className="text-gray-600 hover:text-red-400 p-1"><Trash2 className="w-3.5 h-3.5"/></button></div>)}</div>
           </div>}
 
           {trainTab === "wizard" && <div className="space-y-3">
@@ -373,7 +408,7 @@ export default function GymQuest() {
       {tab !== "profile" && <button onClick={() => setShowCheck(true)} className="fixed bottom-20 right-4 bg-yellow-500 border-4 border-yellow-300 rounded-full p-4 shadow-2xl z-50"><Plus className="w-6 h-6 text-black"/></button>}
 
       {/* MODALS */}
-      {showCheck && <CheckModal nc={nc} setNc={setNc} exIn={exIn} setExIn={setExIn} useCustomEx={useCustomEx} setUseCustomEx={setUseCustomEx} char={char} checks={checks} onSubmit={submitCheck} onClose={() => { setShowCheck(false); setNc({exercises:[],category:"",notes:""}); setExIn({exercise:"",customExercise:"",weight:"",reps:"",sets:"3"}); setUseCustomEx(false); }}/>}
+      {showCheck && <CheckModal nc={nc} setNc={setNc} exIn={exIn} setExIn={setExIn} useCustomEx={useCustomEx} setUseCustomEx={setUseCustomEx} char={char} checks={checks} editingCheck={editingCheck} onSubmit={editingCheck ? submitEditCheck : submitCheck} onClose={() => { setShowCheck(false); setEditingCheck(null); setNc({exercises:[],category:"",notes:""}); setExIn({exercise:"",customExercise:"",weight:"",reps:"",sets:"3"}); setUseCustomEx(false); }}/>}
       {showImport && <ImportModal onClose={() => setShowImport(false)} onImport={handleImport} showMsg={showMsg}/>}
       {selectedDay && <DayDetailModal date={selectedDay.date} dayChecks={selectedDay.checks} onClose={() => setSelectedDay(null)}/>}
 
