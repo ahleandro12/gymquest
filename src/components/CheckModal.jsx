@@ -80,7 +80,7 @@ export default function CheckModal({ nc, setNc, exIn, setExIn, useCustomEx, setU
                   <input type="number" placeholder="Reps" value={exIn.reps} onChange={e => setExIn(p => ({ ...p, reps: e.target.value }))} className="px-3 py-2 bg-gray-800 text-yellow-400 border border-gray-700 rounded-xl text-sm outline-none"/>
                   <input type="number" placeholder="Series" value={exIn.sets} onChange={e => setExIn(p => ({ ...p, sets: e.target.value }))} className="px-3 py-2 bg-gray-800 text-yellow-400 border border-gray-700 rounded-xl text-sm outline-none"/>
                 </div>
-                <button onClick={addEx} className="w-full mt-2 bg-gray-700 border border-gray-600 text-white py-2 rounded-xl text-sm font-black flex items-center justify-center gap-2"><Plus className="w-4 h-4"/>Agregar ejercicio</button>
+                <button onClick={addEx} className="w-full mt-2 bg-yellow-800 border border-yellow-600 text-white py-2 rounded-xl text-sm font-black flex items-center justify-center gap-2"><Plus className="w-4 h-4"/>Agregar ejercicio</button>
               </>
             ) : <p className="text-gray-600 text-xs text-center py-2">Elegí una categoría primero ☝️</p>}
           </div>
