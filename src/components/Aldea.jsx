@@ -1,11 +1,9 @@
-import { useState, useEffect } from "react";
-import { doc, setDoc, getDoc, collection, orderBy, limit, onSnapshot, query, updateDoc, where, getDocs } from "firebase/firestore";
+import { useState, useEffect, useRef } from "react";
+import { doc, setDoc, getDoc, deleteDoc, collection, orderBy, limit, onSnapshot, query, addDoc, updateDoc, where, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase.js";
-import { Flame, Trophy, Zap, Clock, CheckCircle, XCircle, Users, Crown } from "lucide-react";
-import { calcLevel, calcStreak, expForLevel, ARCHETYPES_REF } from "../utils.js";
-import { ARCHETYPES, RACES } from "../data.js";
+import { Flame, CheckCircle, XCircle, Users, Crown, UserMinus, Send, MessageCircle } from "lucide-react";
+import { ARCHETYPES } from "../data.js";
 
-// UID del admin (Lean)
 const ADMIN_UID = "UWneNlnhwlVS3LCpbKGslFrR4462";
 
 function calcLvl(exp) { return Math.floor(Math.sqrt((exp || 0) / 50)) + 1; }
@@ -18,9 +16,9 @@ function expPct(exp) {
 function getStreak(checks) {
   if (!checks?.length) return 0;
   const sorted = [...checks].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  let streak = 0, cur = new Date(); cur.setHours(0,0,0,0);
+  let streak = 0, cur = new Date(); cur.setHours(0, 0, 0, 0);
   for (const c of sorted) {
-    const d = new Date(c.timestamp); d.setHours(0,0,0,0);
+    const d = new Date(c.timestamp); d.setHours(0, 0, 0, 0);
     const diff = Math.floor((cur - d) / 86400000);
     if (diff === streak) streak++; else if (diff > streak) break;
   }
@@ -28,7 +26,7 @@ function getStreak(checks) {
 }
 
 // ── MEMBER CARD ──
-function MemberCard({ member, rank, isYou }) {
+function MemberCard({ member, rank, isYou, isAdmin, onKick }) {
   const { char, checks = [] } = member;
   const lvl = calcLvl(char?.exp || 0);
   const streak = getStreak(checks);
@@ -41,7 +39,7 @@ function MemberCard({ member, rank, isYou }) {
       <div className="flex items-center gap-3 mb-3">
         <div className="relative">
           <div className="text-3xl">{archData.icon}</div>
-          {rank <= 3 && <div className="absolute -top-1 -right-1 text-sm">{rank === 1 ? "🥇" : rank === 2 ? "🥈" : "🥉"}</div>}
+          {rank <= 3 && !isYou && <div className="absolute -top-1 -right-1 text-sm">{rank === 1 ? "🥇" : rank === 2 ? "🥈" : "🥉"}</div>}
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2 flex-wrap">
@@ -51,11 +49,18 @@ function MemberCard({ member, rank, isYou }) {
           </div>
           <div className="text-gray-500 text-xs">Nv.{lvl} · {archData.name}</div>
         </div>
-        <div className="text-right">
-          <div className="text-orange-400 text-sm font-black flex items-center gap-1 justify-end">
-            <Flame className="w-3 h-3"/>{streak}d
+        <div className="flex items-center gap-2">
+          <div className="text-right">
+            <div className="text-orange-400 text-sm font-black flex items-center gap-1 justify-end">
+              <Flame className="w-3 h-3"/>{streak}d
+            </div>
+            <div className="text-gray-600 text-xs">{checks.length} entrenos</div>
           </div>
-          <div className="text-gray-600 text-xs">{checks.length} entrenos</div>
+          {isAdmin && !isYou && (
+            <button onClick={() => onKick(member.uid, char?.name)} className="text-gray-600 hover:text-red-400 p-1 ml-1">
+              <UserMinus className="w-4 h-4"/>
+            </button>
+          )}
         </div>
       </div>
       <div className="mb-2">
@@ -82,16 +87,14 @@ function MemberCard({ member, rank, isYou }) {
   );
 }
 
-// ── RANKING TABLE ──
+// ── RANKING ──
 function RankingTab({ members }) {
   const [rankBy, setRankBy] = useState("exp");
-
   const sorted = [...members].sort((a, b) => {
     if (rankBy === "exp") return (b.char?.exp || 0) - (a.char?.exp || 0);
     if (rankBy === "streak") return getStreak(b.checks) - getStreak(a.checks);
     return (b.checks?.length || 0) - (a.checks?.length || 0);
   });
-
   return (
     <div className="space-y-3">
       <div className="flex gap-1 bg-gray-800 rounded-xl p-1">
@@ -107,10 +110,8 @@ function RankingTab({ members }) {
             <div className="text-white font-black text-sm">{m.char?.name}</div>
             <div className="text-gray-600 text-xs">Nv.{calcLvl(m.char?.exp || 0)}</div>
           </div>
-          <div className="text-right">
-            <div className={`font-black text-sm ${rankBy === "exp" ? "text-blue-400" : rankBy === "streak" ? "text-orange-400" : "text-green-400"}`}>
-              {rankBy === "exp" ? `${m.char?.exp || 0} XP` : rankBy === "streak" ? `${getStreak(m.checks)}d` : `${m.checks?.length || 0}`}
-            </div>
+          <div className={`font-black text-sm ${rankBy === "exp" ? "text-blue-400" : rankBy === "streak" ? "text-orange-400" : "text-green-400"}`}>
+            {rankBy === "exp" ? `${m.char?.exp || 0} XP` : rankBy === "streak" ? `${getStreak(m.checks)}d` : `${m.checks?.length || 0}`}
           </div>
         </div>
       ))}
@@ -118,7 +119,78 @@ function RankingTab({ members }) {
   );
 }
 
-// ── SOLICITUDES (solo admin) ──
+// ── CHAT ──
+function ChatTab({ currentUid, currentChar }) {
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState("");
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    const q = query(collection(db, "chat"), orderBy("createdAt", "asc"), limit(50));
+    const unsub = onSnapshot(q, snap => {
+      setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    });
+    return () => unsub();
+  }, []);
+
+  const sendMsg = async () => {
+    if (!text.trim()) return;
+    try {
+      await addDoc(collection(db, "chat"), {
+        text: text.trim(),
+        uid: currentUid,
+        name: currentChar?.name || "Guerrero",
+        archetype: currentChar?.archetype || "barbarian",
+        createdAt: serverTimestamp(),
+      });
+      setText("");
+    } catch (e) { console.error(e); }
+  };
+
+  const handleKey = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMsg(); } };
+
+  return (
+    <div className="flex flex-col h-[60vh]">
+      <div className="flex-1 overflow-y-auto space-y-2 pb-2">
+        {messages.length === 0 && <div className="text-gray-600 text-center py-8 text-sm">Sin mensajes aún. ¡Rompé el hielo! 🗡️</div>}
+        {messages.map(m => {
+          const isMe = m.uid === currentUid;
+          const arch = ARCHETYPES[m.archetype] || ARCHETYPES.barbarian;
+          return (
+            <div key={m.id} className={`flex gap-2 ${isMe ? "flex-row-reverse" : ""}`}>
+              <div className="text-xl flex-shrink-0">{arch.icon}</div>
+              <div className={`max-w-[75%] ${isMe ? "items-end" : "items-start"} flex flex-col`}>
+                {!isMe && <div className="text-xs text-gray-500 mb-0.5 font-bold">{m.name}</div>}
+                <div className={`px-3 py-2 rounded-2xl text-sm ${isMe ? "bg-yellow-700 text-white rounded-tr-sm" : "bg-gray-800 text-gray-200 rounded-tl-sm"}`}>
+                  {m.text}
+                </div>
+                <div className="text-xs text-gray-700 mt-0.5">
+                  {m.createdAt?.toDate ? m.createdAt.toDate().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : ""}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        <div ref={bottomRef}/>
+      </div>
+      <div className="flex gap-2 pt-2 border-t border-gray-800">
+        <input
+          value={text}
+          onChange={e => setText(e.target.value)}
+          onKeyDown={handleKey}
+          placeholder="Escribí un mensaje..."
+          className="flex-1 px-3 py-2 bg-gray-800 text-white border border-gray-700 rounded-xl text-sm outline-none"
+        />
+        <button onClick={sendMsg} disabled={!text.trim()} className="bg-yellow-600 border border-yellow-500 text-black p-2.5 rounded-xl disabled:opacity-40">
+          <Send className="w-4 h-4"/>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── SOLICITUDES ──
 function SolicitudesTab({ onAccept, onReject }) {
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -179,7 +251,6 @@ export default function AldeaTab({ currentUid, currentChar, currentChecks, authM
     return () => unsub();
   }, []);
 
-  // Verificar si ya mandó solicitud
   useEffect(() => {
     const sent = localStorage.getItem("gq_solicitud_sent");
     if (sent) setSolicitudEnviada(true);
@@ -204,7 +275,6 @@ export default function AldeaTab({ currentUid, currentChar, currentChecks, authM
 
   const handleAccept = async (solicitud) => {
     try {
-      // Guardar en users como guest
       await setDoc(doc(db, "users", solicitud.id), {
         char: solicitud.char,
         checks: solicitud.checks || [],
@@ -229,7 +299,16 @@ export default function AldeaTab({ currentUid, currentChar, currentChecks, authM
     }
   };
 
-  // Armar lista completa con usuario actual
+  const handleKick = async (uid, name) => {
+    if (!confirm(`¿Expulsar a ${name} de la aldea?`)) return;
+    try {
+      await deleteDoc(doc(db, "users", uid));
+      showMsg(`⚔️ ${name} fue expulsado de la aldea`);
+    } catch (e) {
+      showMsg("Error al expulsar", "err");
+    }
+  };
+
   const allMembers = [
     ...(currentChar ? [{ uid: currentUid || "me", char: currentChar, checks: currentChecks || [], isYou: true }] : []),
     ...members.filter(m => m.uid !== currentUid)
@@ -238,6 +317,7 @@ export default function AldeaTab({ currentUid, currentChar, currentChecks, authM
   const tabs = [
     { id: "feed", l: "🏰 Feed" },
     { id: "ranking", l: "🏆 Ranking" },
+    { id: "chat", l: "💬 Chat" },
     ...(isAdmin ? [{ id: "solicitudes", l: "📬 Solicitudes" }] : []),
   ];
 
@@ -245,7 +325,6 @@ export default function AldeaTab({ currentUid, currentChar, currentChecks, authM
 
   return (
     <div className="space-y-3">
-      {/* Header */}
       <div className="bg-gray-900 border-2 border-yellow-800 rounded-2xl p-4">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-2xl">🏰</span>
@@ -255,7 +334,6 @@ export default function AldeaTab({ currentUid, currentChar, currentChecks, authM
         <p className="text-gray-500 text-xs">{allMembers.length} guerrero{allMembers.length !== 1 ? "s" : ""} activo{allMembers.length !== 1 ? "s" : ""}</p>
       </div>
 
-      {/* Invitado sin acceso */}
       {!isGoogle && (
         <div className="bg-gray-900 border-2 border-purple-700 rounded-2xl p-4 text-center">
           <div className="text-3xl mb-2">🏰</div>
@@ -275,7 +353,6 @@ export default function AldeaTab({ currentUid, currentChar, currentChecks, authM
         </div>
       )}
 
-      {/* Tabs — solo para Google */}
       {isGoogle && (
         <>
           <div className="flex gap-1 bg-gray-900 border-2 border-gray-800 rounded-xl p-1">
@@ -293,12 +370,14 @@ export default function AldeaTab({ currentUid, currentChar, currentChecks, authM
                 </div>
               )}
               {allMembers.map((m, i) => (
-                <MemberCard key={m.uid} member={m} rank={i + 1} isYou={m.isYou}/>
+                <MemberCard key={m.uid} member={m} rank={i + 1} isYou={m.isYou} isAdmin={isAdmin} onKick={handleKick}/>
               ))}
             </div>
           )}
 
           {aldeaTab === "ranking" && <RankingTab members={allMembers}/>}
+
+          {aldeaTab === "chat" && <ChatTab currentUid={currentUid} currentChar={currentChar}/>}
 
           {aldeaTab === "solicitudes" && isAdmin && (
             <SolicitudesTab onAccept={handleAccept} onReject={handleReject}/>
